@@ -185,7 +185,7 @@ void onIdle( ) {
     
 }
 
-// ...Idaig modosithatod
+// ...Idaig modosithatodjjjjj
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 // A C++ program belepesi pontja, a main fuggvenyt mar nem szabad bantani
