@@ -63,7 +63,7 @@
 // Innentol modosithatod...
 
 //--------------------------------------------------------
-// 3D Vektorffff
+// 3D Vektor
 //--------------------------------------------------------
 struct Vector {
     float x, y, z;
@@ -129,7 +129,7 @@ void onInitialization( ) {
     // Peldakent keszitunk egy kepet az operativ memoriaba
     for(int Y = 0; Y < screenHeight; Y++)
         for(int X = 0; X < screenWidth; X++)
-            image[Y*screenWidth + X] = Color((float)X/screenWidth, (float)Y/screenHeight, 0);
+            image[Y*screenWidth + X] = Color(0, 0, 0);
     
 }
 
@@ -142,13 +142,6 @@ void onDisplay( ) {
     
     // Peldakent atmasoljuk a kepet a rasztertarba
     glDrawPixels(screenWidth, screenHeight, GL_RGB, GL_FLOAT, image);
-    // Majd rajzolunk egy kek haromszoget
-    glColor3f(0, 0, 1);
-    glBegin(GL_TRIANGLES);
-    glVertex2f(-0.2f, -0.2f);
-    glVertex2f( 0.2f, -0.2f);
-    glVertex2f( 0.0f,  0.2f);
-    glEnd( );
     
     // ...
     

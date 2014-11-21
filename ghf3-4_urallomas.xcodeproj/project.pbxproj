@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		4CA52F2D1A1F9CDA00C1D88D /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4CA52F2C1A1F9CDA00C1D88D /* main.cpp */; };
+		4CA52F341A1FA6A500C1D88D /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4CA52F331A1FA6A500C1D88D /* OpenGL.framework */; };
+		4CA52F361A1FA6AB00C1D88D /* GLUT.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4CA52F351A1FA6AB00C1D88D /* GLUT.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -25,6 +27,8 @@
 /* Begin PBXFileReference section */
 		4CA52F291A1F9CDA00C1D88D /* ghf3-4_urallomas */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "ghf3-4_urallomas"; sourceTree = BUILT_PRODUCTS_DIR; };
 		4CA52F2C1A1F9CDA00C1D88D /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
+		4CA52F331A1FA6A500C1D88D /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
+		4CA52F351A1FA6AB00C1D88D /* GLUT.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GLUT.framework; path = System/Library/Frameworks/GLUT.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -32,6 +36,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4CA52F361A1FA6AB00C1D88D /* GLUT.framework in Frameworks */,
+				4CA52F341A1FA6A500C1D88D /* OpenGL.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -41,6 +47,8 @@
 		4CA52F201A1F9CDA00C1D88D = {
 			isa = PBXGroup;
 			children = (
+				4CA52F351A1FA6AB00C1D88D /* GLUT.framework */,
+				4CA52F331A1FA6A500C1D88D /* OpenGL.framework */,
 				4CA52F2B1A1F9CDA00C1D88D /* ghf3-4_urallomas */,
 				4CA52F2A1A1F9CDA00C1D88D /* Products */,
 			);
