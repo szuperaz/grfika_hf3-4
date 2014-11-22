@@ -62,6 +62,9 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Innentol modosithatod...
 
+const int screenWidth = 600;	// alkalmazÃ¡s ablak felbontÃ¡sa
+const int screenHeight = 600;
+const float pi = 3.14159265359;
 //--------------------------------------------------------
 // 3D Vektor
 //--------------------------------------------------------
@@ -115,22 +118,165 @@ struct Color {
     }
 };
 
-const int screenWidth = 600;	// alkalmazÃ¡s ablak felbontÃ¡sa
-const int screenHeight = 600;
+struct Light {
+public:
+    float pos[4] = {-300, 500, -500, 0};
+    float ambient[4] = {1, 1, 1, 1};
+    float diffuse[4] = {0.2, 0.2, 0.2, 1};
+    float specular[4] = {1, 1, 1, 1};
+    float shininess[1] = {128};
+    void setOGL () {
+        glLightfv(GL_LIGHT0, GL_POSITION, pos);
+        glLightfv(GL_LIGHT0, GL_AMBIENT, ambient);
+        glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuse);
+        glLightfv(GL_LIGHT0, GL_SPECULAR, specular);
+        glLightfv(GL_LIGHT0, GL_SHININESS, shininess);
+        glEnable(GL_LIGHT0);
+        
+    }
+};
 
+struct Camera {
+public:
+    Vector eye = Vector(0, 0, 100);
+    Vector lookAt = Vector(0,0,0);
+    Vector up = Vector(0,1,0);
+    int viewAngle = 90;
+    int aspectRatio = 1;
+    int zNear = 5;
+    int zFar = 500;
+    void setOGL () {
+        glViewport(0, 0, screenWidth, screenHeight);
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        gluPerspective(viewAngle, aspectRatio, zNear, zFar);
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+        gluLookAt(eye.x, eye.y, eye.z, lookAt.x, lookAt.y, lookAt.z, up.x, up.y, up.z);
+    }
+};
 
-Color image[screenWidth*screenHeight];	// egy alkalmazÃ¡s ablaknyi kÃ©p
+struct Object {
+public:
+    void virtual draw()=0;
+};
 
+struct Material {
+public:
+    float colour[4];
+    int shininess;
+    Material () {
+    }
+    Material (float r, float g, float b, float alpha, int shininess) {
+        colour[0] = r;
+        colour[1] = g;
+        colour[2] = b;
+        colour[3] = alpha;
+        this->shininess = shininess;
+    }
+    Material (Material const &material) {
+        colour[0] = material.colour[0];
+        colour[1] = material.colour[1];
+        colour[2] = material.colour[2];
+        colour[3] = material.colour[3];
+        shininess = material.shininess;
+    }
+    void setOGL () {
+        glMaterialfv(GL_FRONT, GL_DIFFUSE, colour);
+        glMaterialfv(GL_FRONT, GL_AMBIENT, colour);
+        glMaterialfv(GL_FRONT, GL_SPECULAR, colour);
+        glMaterialfv(GL_FRONT, GL_SPECULAR, colour);
+        glMateriali(GL_FRONT, GL_SHININESS, shininess);
+    }
+};
+
+struct ParametricSurface : Object {
+public:
+    Material material;
+    ParametricSurface () {
+        
+    }
+    ParametricSurface (Material material) {
+        this->material = Material(material);
+    }
+    void draw () {
+        material.setOGL();
+        glBegin(GL_QUADS);
+        int ntess = 150;
+        for (int i = 0; i < ntess; i++) {
+            for (int j = 0; j < ntess; j++) {
+                vertexOGL((float)i/ntess, (float)j/ntess);
+                vertexOGL((float)(i+1)/ntess, (float)j/ntess);
+                vertexOGL((float)(i+1)/ntess, (float)(j+1)/ntess);
+                vertexOGL((float)i/ntess, (float)(j+1)/ntess);
+            }
+        }
+        glEnd();
+    }
+    void virtual vertexOGL(float u, float v) =0;
+};
+
+struct Sphere : ParametricSurface {
+public:
+    Sphere () {}
+    Sphere (Material m) : ParametricSurface(m){
+    }
+    void vertexOGL (float u, float v) {
+        u = u*2*pi;
+        v = v*pi;
+        glTexCoord2f(u,v);
+        float normalX, normalY, normalZ, rX, rY, rZ, radius = 30;
+        Vector du, dv, normal;
+        rX = radius * cosf(u) * sinf(v);
+        rY = radius * sinf(u) * sinf(v);
+        rZ = radius * cosf(v);
+        normalX = -radius * sinf(u)*sinf(v);
+        normalY = radius * cosf(u) * sinf(v);
+        normalZ = 0;
+        du = Vector(normalX, normalY, normalZ);
+        normalX = radius * cosf(u) * cosf(v);
+        normalY = radius * sinf(u) * cosf(v);
+        normalZ = -radius * sinf(v);
+        dv = Vector(normalX, normalY, normalZ);
+        normal = (du % dv);
+        normal = normal * (1/normal.Length());
+        glNormal3f(normal.x, normal.y, normal.z);
+        glVertex3f(rX, rY, rZ);
+    }
+};
+Sphere muHold;
+
+struct Scene {
+public:
+    Object *objects[1];
+    Camera camera;
+    Light sun;
+    Scene () {
+        camera = Camera();
+        sun = Light();
+        Material m = Material(0.3, 0, 0, 1, 2);
+        muHold = Sphere(m);
+        objects[0] = &muHold;
+    }
+    void render () {
+        camera.setOGL();
+        sun.setOGL();
+        for (int i = 0; i<1; i++) {
+            objects[i]->draw();
+        }
+    }
+    
+};
+
+Scene scene;
 
 // Inicializacio, a program futasanak kezdeten, az OpenGL kontextus letrehozasa utan hivodik meg (ld. main() fv.)
 void onInitialization( ) {
-    glViewport(0, 0, screenWidth, screenHeight);
-    
-    // Peldakent keszitunk egy kepet az operativ memoriaba
-    for(int Y = 0; Y < screenHeight; Y++)
-        for(int X = 0; X < screenWidth; X++)
-            image[Y*screenWidth + X] = Color(0, 0, 0);
-    
+    glEnable(GL_NORMALIZE);
+    glEnable(GL_LIGHTING);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+    scene = Scene();
 }
 
 // Rajzolas, ha az alkalmazas ablak ervenytelenne valik, akkor ez a fuggveny hivodik meg
@@ -138,13 +284,9 @@ void onDisplay( ) {
     glClearColor(0.1f, 0.2f, 0.3f, 1.0f);		// torlesi szin beallitasa
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // kepernyo torles
     
-    // ..
-    
     // Peldakent atmasoljuk a kepet a rasztertarba
-    glDrawPixels(screenWidth, screenHeight, GL_RGB, GL_FLOAT, image);
-    
-    // ...
-    
+    //glDrawPixels(screenWidth, screenHeight, GL_RGB, GL_FLOAT, image);
+    scene.render();
     glutSwapBuffers();     				// Buffercsere: rajzolas vege
     
 }
