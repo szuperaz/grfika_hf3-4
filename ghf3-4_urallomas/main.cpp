@@ -120,11 +120,21 @@ struct Color {
 
 struct Light {
 public:
-    float pos[4] = {-300, 500, -500, 0};
-    float ambient[4] = {1, 1, 1, 1};
-    float diffuse[4] = {0.2, 0.2, 0.2, 1};
-    float specular[4] = {1, 1, 1, 1};
-    float shininess[1] = {128};
+    float pos[4];
+    float ambient[4];
+    float diffuse[4];
+    float specular[4];
+    float shininess[1];
+    Light () {}
+    Light (float pos[4], float ambient[4], float diffuse[4], float specular[4], float shininess) {
+        for (int i=0; i < 4; i++) {
+            this->pos[i] = pos[i];
+            this->ambient[i] = ambient[i];
+            this->specular[i] = specular[i];
+            this->diffuse[i] = diffuse[i];
+        }
+        this->shininess[0] = shininess;
+    }
     void setOGL () {
         glLightfv(GL_LIGHT0, GL_POSITION, pos);
         glLightfv(GL_LIGHT0, GL_AMBIENT, ambient);
@@ -138,18 +148,28 @@ public:
 
 struct Camera {
 public:
-    Vector eye = Vector(0, 0, 100);
-    Vector lookAt = Vector(0,0,0);
-    Vector up = Vector(0,1,0);
-    int viewAngle = 90;
-    int aspectRatio = 1;
-    int zNear = 5;
-    int zFar = 500;
+    Vector eye;
+    Vector lookAt;
+    Vector up;
+    int fieldOfView;
+    int aspectRatio;
+    int zNear;
+    int zFar;
+    Camera () {}
+    Camera (Vector eye, Vector lookAt, Vector up, int fieldOfView, int aspectRatio, int zNear, int zFar) {
+        this->eye = eye;
+        this->lookAt = lookAt;
+        this->up = up;
+        this->fieldOfView = fieldOfView;
+        this->aspectRatio = aspectRatio;
+        this->zNear = zNear;
+        this->zFar = zFar;
+    }
     void setOGL () {
         glViewport(0, 0, screenWidth, screenHeight);
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
-        gluPerspective(viewAngle, aspectRatio, zNear, zFar);
+        gluPerspective(fieldOfView, aspectRatio, zNear, zFar);
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
         gluLookAt(eye.x, eye.y, eye.z, lookAt.x, lookAt.y, lookAt.z, up.x, up.y, up.z);
@@ -192,15 +212,26 @@ public:
 
 struct ParametricSurface : Object {
 public:
+    Vector position;
+    Vector scale;
+    Vector rotate;
     Material material;
     ParametricSurface () {
         
     }
-    ParametricSurface (Material material) {
+    ParametricSurface (Material material, Vector position, Vector rotate, Vector scale) {
+        this->position = position;
+        this->rotate = rotate;
+        this->scale = scale;
         this->material = Material(material);
     }
     void draw () {
         material.setOGL();
+        glPushMatrix();
+        glLoadIdentity();
+        glScalef(scale.x, scale.y, scale.z);
+        glRotatef(0, rotate.x, rotate.y, rotate.z);
+        glTranslatef(position.x, position.y, position.z);
         glBegin(GL_QUADS);
         int ntess = 150;
         for (int i = 0; i < ntess; i++) {
@@ -212,31 +243,35 @@ public:
             }
         }
         glEnd();
+        glPopMatrix();
     }
     void virtual vertexOGL(float u, float v) =0;
 };
 
-struct Sphere : ParametricSurface {
+struct Ellipsoid : ParametricSurface {
 public:
-    Sphere () {}
-    Sphere (Material m) : ParametricSurface(m){
+    float a,b,c;
+    Ellipsoid () {}
+    Ellipsoid (Material m, float a, float b, float c, Vector position, Vector rotate, Vector scale) : ParametricSurface(m, position, rotate, scale){
+        this->a = a;
+        this->b = b;
+        this->c = c;
     }
     void vertexOGL (float u, float v) {
         u = u*2*pi;
         v = v*pi;
-        glTexCoord2f(u,v);
-        float normalX, normalY, normalZ, rX, rY, rZ, radius = 30;
+        float normalX, normalY, normalZ, rX, rY, rZ;
         Vector du, dv, normal;
-        rX = radius * cosf(u) * sinf(v);
-        rY = radius * sinf(u) * sinf(v);
-        rZ = radius * cosf(v);
-        normalX = -radius * sinf(u)*sinf(v);
-        normalY = radius * cosf(u) * sinf(v);
+        rX = a * cosf(u) * sinf(v);
+        rY = b * sinf(u) * sinf(v);
+        rZ = c * cosf(v);
+        normalX = -a * sinf(u)*sinf(v);
+        normalY = b * cosf(u) * sinf(v);
         normalZ = 0;
         du = Vector(normalX, normalY, normalZ);
-        normalX = radius * cosf(u) * cosf(v);
-        normalY = radius * sinf(u) * cosf(v);
-        normalZ = -radius * sinf(v);
+        normalX = a * cosf(u) * cosf(v);
+        normalY = b * sinf(u) * cosf(v);
+        normalZ = -c * sinf(v);
         dv = Vector(normalX, normalY, normalZ);
         normal = (du % dv);
         normal = normal * (1/normal.Length());
@@ -244,7 +279,37 @@ public:
         glVertex3f(rX, rY, rZ);
     }
 };
-Sphere muHold;
+
+struct Cylinder : ParametricSurface {
+    float height, radius;
+    Cylinder () {}
+    Cylinder (Material m, float height, float radius, Vector position, Vector rotate, Vector scale) :ParametricSurface(m, position, rotate, scale) {
+        this->height = height;
+        this->radius = radius;
+    }
+    void vertexOGL (float u, float v) {
+        u = u*2*pi;
+        v = v*height;
+        float normalX, normalY, normalZ, rX, rY, rZ;
+        Vector du, dv, normal;
+        rX = radius * cosf(u);
+        rY = radius * sinf(u);
+        rZ = v;
+        normalX = -radius * sinf(u);
+        normalY = radius * cosf(u);
+        normalZ = 0;
+        du = Vector(normalX, normalY, normalZ);
+        normalX = 0;
+        normalY = 0;
+        normalZ = v;
+        dv = Vector(normalX, normalY, normalZ);
+        normal = normal * (1/normal.Length());
+        glNormal3f(normal.x, normal.y, normal.z);
+        glVertex3f(rX, rY, rZ);
+    }
+};
+
+Ellipsoid muHold;
 
 struct Scene {
 public:
@@ -252,10 +317,15 @@ public:
     Camera camera;
     Light sun;
     Scene () {
-        camera = Camera();
-        sun = Light();
+        camera = Camera(Vector(0,0,-100), Vector(0,0,0), Vector(0,1,0), 65, 1, 5, 400);
+        float pos[4] = {-300, 500, -500, 0};
+        float ambient[4] = {1, 1, 1, 1};
+        float diffuse[4] = {0.2, 0.2, 0.2, 1};
+        float specular[4] = {1, 1, 1, 1};
+        float shininess = 128;
+        sun = Light(pos, ambient, diffuse, specular, shininess);
         Material m = Material(0.3, 0, 0, 1, 2);
-        muHold = Sphere(m);
+        muHold = Ellipsoid(m, 18, 18, 18, Vector(-33, -40, -100), Vector(0, 0, 0), Vector(1, 1, 1));
         objects[0] = &muHold;
     }
     void render () {
