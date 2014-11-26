@@ -254,6 +254,7 @@ public:
         this->c = c;
     }
     void vertexOGL (float u, float v) {
+        glTexCoord2f(u, v);
         u = u*2*pi;
         v = v*pi;
         float normalX, normalY, normalZ, rX, rY, rZ;
@@ -307,57 +308,65 @@ struct Cylinder : ParametricSurface {
 struct Satellite : Object {
 public:
     Ellipsoid body;
-    Cylinder pipe;
+    Cylinder pipe1, pipe2, pipe3;
     Satellite () {
-        Material m = Material(0.3, 0, 0, 1, 2);
-        Material m2 = Material(0, 0.3, 0, 1, 2);
-        body = Ellipsoid(m, 10, 10, 10, Vector(22, -20, -10), 0, Vector(0, 0, 0), Vector(1, 1, 1));
-        pipe = Cylinder(m2, 1, 1, Vector(22, -20, -10), 45, Vector(0, 0, 0), Vector(1, 1, 40));
+        Material m = Material(0.7, 0.5, 0.5, 1, 10);
+        Material m2 = Material(0.4, 0.4, 0.4, 1, 10);
+        body = Ellipsoid(m, 10, 10, 10, Vector(45, 30, -40), 0, Vector(0, 0, 0), Vector(1, 1, 1));
+        pipe1 = Cylinder(m2, 1, 1, Vector(0, 0, -15), 0, Vector(0, 0, 0), Vector(1, 1, 30));
+        pipe2 = Cylinder(m2, 1, 1, Vector(0, 15, 0), 90, Vector(0, 0, 0), Vector(1, 1, 30));
+        pipe3 = Cylinder(m2, 1, 1, Vector(-15, 0, 0), 90, Vector(0, 1, 0), Vector(1, 1, 30));
     }
     void draw () {
         glPushMatrix();
-        glTranslatef(22, -15, -30);
-        glRotatef(90, 0, 0, 0);
-        glScalef(1, 1, 1);
+        glTranslatef(body.position.x, body.position.y, body.position.z);
+        glRotatef(body.angle, body.rotate.x, body.rotate.y, body.rotate.z);
+        glScalef(body.scale.x, body.scale.y, body.scale.z);
         body.draw();
         glPushMatrix();
-        glTranslatef(0, 0, -15);
-        glRotatef(0, 0, 0, 0);
-        glScalef(1, 1, 30);
-        pipe.draw();
+        glTranslatef(pipe1.position.x, pipe1.position.y, pipe1.position.z);
+        glRotatef(pipe1.angle, pipe1.rotate.x, pipe1.rotate.y, pipe1.rotate.z);
+        glScalef(pipe1.scale.x, pipe1.scale.y, pipe1.scale.z);
+        pipe1.draw();
         glPopMatrix();
         glPushMatrix();
-        glTranslatef(0, 15, 0);
-        glRotatef(90, 0, 0, 0);
-        glScalef(1, 1, 30);
-        pipe.draw();
+        glTranslatef(pipe2.position.x, pipe2.position.y, pipe2.position.z);
+        glRotatef(pipe2.angle, pipe2.rotate.x, pipe2.rotate.y, pipe2.rotate.z);
+        glScalef(pipe2.scale.x, pipe2.scale.y, pipe2.scale.z);
+        pipe2.draw();
         glPopMatrix();
         glPushMatrix();
-        glTranslatef(-15, 0, 0);
-        glRotatef(90, 0, 1, 0);
-        glScalef(1, 1, 30);
-        pipe.draw();
+        glTranslatef(pipe3.position.x, pipe3.position.y, pipe3.position.z);
+        glRotatef(pipe3.angle, pipe3.rotate.x, pipe3.rotate.y, pipe3.rotate.z);
+        glScalef(pipe3.scale.x, pipe3.scale.y, pipe3.scale.z);
+        pipe3.draw();
         glPopMatrix();
         glPopMatrix();
     }
 };
+
+unsigned int texid;
 
 struct Planet : Object {
 public:
     Ellipsoid planet;
     Ellipsoid atmosphere;
     Planet () {
-        Material m = Material(0.3, 0, 0, 1, 2);
-        Material m1 = Material(0, 0, 0.30, 0.2, 2);
-        planet = Ellipsoid(m, 18, 17, 18, Vector(0,0,0), 0, Vector(0,0,0), Vector(1,1,1));
-        atmosphere = Ellipsoid(m1, 20, 19, 18, Vector(0,0,0), 0, Vector(0,0,0), Vector(1,1,1));
+        Material mp = Material(1, 0, 0, 1, 2);
+        Material ma = Material(0, 0, 0.9, 0.2, 2);
+        planet = Ellipsoid(mp, 18, 17, 18, Vector(-30, 10, 0), 0, Vector(0,0,0), Vector(1,1,1));
+        atmosphere = Ellipsoid(ma, 20, 19, 18, Vector(-30, 10, 0), 0, Vector(0,0,0), Vector(1,1,1));
     }
     void draw () {
         glPushMatrix();
-        glTranslatef(-30, 10, 0);
-        glRotatef(0, 0, 0, 0);
-        glScalef(1, 1, 1);
+        glTranslatef(planet.position.x, planet.position.y, planet.position.z);
+        glRotatef(planet.angle, planet.rotate.x, planet.rotate.y, planet.rotate.z);
+        glScalef(planet.scale.x, planet.scale.y, planet.scale.z);
+        glEnable(GL_TEXTURE_2D);
+        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+        glBindTexture(GL_TEXTURE_2D, texid);
         planet.draw();
+        glDisable(GL_TEXTURE_2D);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         atmosphere.draw();
@@ -367,7 +376,7 @@ public:
 };
 
 Planet planet;
-Satellite artificialMoon;
+Satellite satellite;
 
 struct Scene {
 public:
@@ -375,21 +384,41 @@ public:
     Camera camera;
     Light sun;
     Scene () {
-        camera = Camera(Vector(0,0,-100), Vector(0,0,0), Vector(0,1,0), 65, 1, 5, 400);
-        float pos[4] = {0, 0, 500, 0};
+        camera = Camera(Vector(0,0,100), Vector(0,0,0), Vector(0,1,0), 65, 1, 5, 400);
+        float pos[4] = {0, 0, 100, 0};
         float ambient[4] = {1, 1, 1, 1};
         float diffuse[4] = {0.2, 0.2, 0.2, 1};
         float specular[4] = {1, 1, 1, 1};
         float shininess = 128;
         sun = Light(pos, ambient, diffuse, specular, shininess);
-        artificialMoon = Satellite();
+        satellite = Satellite();
         planet = Planet();
-        objects[0] = &artificialMoon;
+        objects[0] = &satellite;
         objects[1] = &planet;
      }
     void render () {
         camera.setOGL();
         sun.setOGL();
+        for (int i = 0; i < 50; i++) {
+            Material m = Material(1, 1,  1, 1, 128);
+            Ellipsoid star (m, 0.5, 0.5, 0.5, Vector(rand()%80, rand()%100, -rand()%300), 0, Vector(0,0,0), Vector(1,1,1));
+            if (i % 2 == 0) {
+                star.position.x *= -1;
+            }
+            if (i % 4 == 0) {
+                star.position.y *= -1;
+            }
+            if (star.position.z > -100) {
+                star.position.z = -100;
+            
+            }
+            glPushMatrix();
+            glTranslatef(star.position.x, star.position.y, star.position.z+120);
+            glRotatef(0, star.rotate.x, star.rotate.y, star.rotate.z);
+            glScalef(star.scale.x, star.scale.y, star.scale.z);
+            star.draw();
+            glPopMatrix();
+        }
         for (int i = 0; i < 2; i++) {
             objects[i]->draw();
         }
@@ -401,20 +430,26 @@ Scene scene;
 
 // Inicializacio, a program futasanak kezdeten, az OpenGL kontextus letrehozasa utan hivodik meg (ld. main() fv.)
 void onInitialization( ) {
+    glGenTextures(1, &texid);
+    glBindTexture(GL_TEXTURE_2D, texid);
+    int level = 0, border = 0, width = 128, height = 128;
+    unsigned char image[width*height*3];
+    for (int i = 0; i < width*height*3; i++) {
+        image[i] = rand();
+    }
+    glTexImage2D(GL_TEXTURE_2D,level, GL_RGB, width, height, border, GL_RGB, GL_UNSIGNED_BYTE, &image[0]);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glEnable(GL_NORMALIZE);
     glEnable(GL_LIGHTING);
     glEnable(GL_DEPTH_TEST);
-    //glEnable(GL_CULL_FACE);
     scene = Scene();
 }
 
 // Rajzolas, ha az alkalmazas ablak ervenytelenne valik, akkor ez a fuggveny hivodik meg
 void onDisplay( ) {
-    glClearColor(0.1f, 0.2f, 0.3f, 1.0f);		// torlesi szin beallitasa
+    glClearColor(0, 0, 0, 1.0f);		// torlesi szin beallitasa
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // kepernyo torles
-    
-    // Peldakent atmasoljuk a kepet a rasztertarba
-    //glDrawPixels(screenWidth, screenHeight, GL_RGB, GL_FLOAT, image);
     scene.render();
     glutSwapBuffers();     				// Buffercsere: rajzolas vege
     
