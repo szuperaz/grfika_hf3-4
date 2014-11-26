@@ -206,7 +206,7 @@ public:
         glMaterialfv(GL_FRONT, GL_AMBIENT, colour);
         glMaterialfv(GL_FRONT, GL_SPECULAR, colour);
         glMaterialfv(GL_FRONT, GL_SPECULAR, colour);
-        glMateriali(GL_FRONT, GL_SHININESS, shininess);
+        glMaterialf(GL_FRONT, GL_SHININESS, shininess);
     }
 };
 
@@ -216,22 +216,19 @@ public:
     Vector scale;
     Vector rotate;
     Material material;
+    float angle;
     ParametricSurface () {
         
     }
-    ParametricSurface (Material material, Vector position, Vector rotate, Vector scale) {
+    ParametricSurface (Material material, Vector position, float angle, Vector rotate, Vector scale) {
         this->position = position;
         this->rotate = rotate;
         this->scale = scale;
         this->material = Material(material);
+        this->angle = angle;
     }
     void draw () {
         material.setOGL();
-        glPushMatrix();
-        glLoadIdentity();
-        glScalef(scale.x, scale.y, scale.z);
-        glRotatef(0, rotate.x, rotate.y, rotate.z);
-        glTranslatef(position.x, position.y, position.z);
         glBegin(GL_QUADS);
         int ntess = 150;
         for (int i = 0; i < ntess; i++) {
@@ -243,7 +240,6 @@ public:
             }
         }
         glEnd();
-        glPopMatrix();
     }
     void virtual vertexOGL(float u, float v) =0;
 };
@@ -252,7 +248,7 @@ struct Ellipsoid : ParametricSurface {
 public:
     float a,b,c;
     Ellipsoid () {}
-    Ellipsoid (Material m, float a, float b, float c, Vector position, Vector rotate, Vector scale) : ParametricSurface(m, position, rotate, scale){
+    Ellipsoid (Material m, float a, float b, float c, Vector position, float angle, Vector rotate, Vector scale) : ParametricSurface(m, position, angle, rotate, scale){
         this->a = a;
         this->b = b;
         this->c = c;
@@ -274,7 +270,6 @@ public:
         normalZ = -c * sinf(v);
         dv = Vector(normalX, normalY, normalZ);
         normal = (du % dv);
-        normal = normal * (1/normal.Length());
         glNormal3f(normal.x, normal.y, normal.z);
         glVertex3f(rX, rY, rZ);
     }
@@ -283,7 +278,7 @@ public:
 struct Cylinder : ParametricSurface {
     float height, radius;
     Cylinder () {}
-    Cylinder (Material m, float height, float radius, Vector position, Vector rotate, Vector scale) :ParametricSurface(m, position, rotate, scale) {
+    Cylinder (Material m, float height, float radius, Vector position, float angle, Vector rotate, Vector scale) :ParametricSurface(m, position, angle, rotate, scale) {
         this->height = height;
         this->radius = radius;
     }
@@ -301,37 +296,101 @@ struct Cylinder : ParametricSurface {
         du = Vector(normalX, normalY, normalZ);
         normalX = 0;
         normalY = 0;
-        normalZ = v;
+        normalZ = height;
         dv = Vector(normalX, normalY, normalZ);
-        normal = normal * (1/normal.Length());
+        normal = (du % dv);
         glNormal3f(normal.x, normal.y, normal.z);
         glVertex3f(rX, rY, rZ);
     }
 };
 
-Ellipsoid muHold;
+struct Satellite : Object {
+public:
+    Ellipsoid body;
+    Cylinder pipe;
+    Satellite () {
+        Material m = Material(0.3, 0, 0, 1, 2);
+        Material m2 = Material(0, 0.3, 0, 1, 2);
+        body = Ellipsoid(m, 10, 10, 10, Vector(22, -20, -10), 0, Vector(0, 0, 0), Vector(1, 1, 1));
+        pipe = Cylinder(m2, 1, 1, Vector(22, -20, -10), 45, Vector(0, 0, 0), Vector(1, 1, 40));
+    }
+    void draw () {
+        glPushMatrix();
+        glTranslatef(22, -15, -30);
+        glRotatef(90, 0, 0, 0);
+        glScalef(1, 1, 1);
+        body.draw();
+        glPushMatrix();
+        glTranslatef(0, 0, -15);
+        glRotatef(0, 0, 0, 0);
+        glScalef(1, 1, 30);
+        pipe.draw();
+        glPopMatrix();
+        glPushMatrix();
+        glTranslatef(0, 15, 0);
+        glRotatef(90, 0, 0, 0);
+        glScalef(1, 1, 30);
+        pipe.draw();
+        glPopMatrix();
+        glPushMatrix();
+        glTranslatef(-15, 0, 0);
+        glRotatef(90, 0, 1, 0);
+        glScalef(1, 1, 30);
+        pipe.draw();
+        glPopMatrix();
+        glPopMatrix();
+    }
+};
+
+struct Planet : Object {
+public:
+    Ellipsoid planet;
+    Ellipsoid atmosphere;
+    Planet () {
+        Material m = Material(0.3, 0, 0, 1, 2);
+        Material m1 = Material(0, 0, 0.30, 0.2, 2);
+        planet = Ellipsoid(m, 18, 17, 18, Vector(0,0,0), 0, Vector(0,0,0), Vector(1,1,1));
+        atmosphere = Ellipsoid(m1, 20, 19, 18, Vector(0,0,0), 0, Vector(0,0,0), Vector(1,1,1));
+    }
+    void draw () {
+        glPushMatrix();
+        glTranslatef(-30, 10, 0);
+        glRotatef(0, 0, 0, 0);
+        glScalef(1, 1, 1);
+        planet.draw();
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        atmosphere.draw();
+        glDisable(GL_BLEND);
+        glPopMatrix();
+    }
+};
+
+Planet planet;
+Satellite artificialMoon;
 
 struct Scene {
 public:
-    Object *objects[1];
+    Object *objects[2];
     Camera camera;
     Light sun;
     Scene () {
         camera = Camera(Vector(0,0,-100), Vector(0,0,0), Vector(0,1,0), 65, 1, 5, 400);
-        float pos[4] = {-300, 500, -500, 0};
+        float pos[4] = {0, 0, 500, 0};
         float ambient[4] = {1, 1, 1, 1};
         float diffuse[4] = {0.2, 0.2, 0.2, 1};
         float specular[4] = {1, 1, 1, 1};
         float shininess = 128;
         sun = Light(pos, ambient, diffuse, specular, shininess);
-        Material m = Material(0.3, 0, 0, 1, 2);
-        muHold = Ellipsoid(m, 18, 18, 18, Vector(-33, -40, -100), Vector(0, 0, 0), Vector(1, 1, 1));
-        objects[0] = &muHold;
-    }
+        artificialMoon = Satellite();
+        planet = Planet();
+        objects[0] = &artificialMoon;
+        objects[1] = &planet;
+     }
     void render () {
         camera.setOGL();
         sun.setOGL();
-        for (int i = 0; i<1; i++) {
+        for (int i = 0; i < 2; i++) {
             objects[i]->draw();
         }
     }
@@ -345,7 +404,7 @@ void onInitialization( ) {
     glEnable(GL_NORMALIZE);
     glEnable(GL_LIGHTING);
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
+    //glEnable(GL_CULL_FACE);
     scene = Scene();
 }
 
