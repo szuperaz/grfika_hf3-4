@@ -221,6 +221,13 @@ public:
         this->material = Material(material);
         this->angle = angle;
     }
+    Object (Material material, Vector scale) {
+        this->position = Vector(0, 0, 0);
+        this->rotate = Vector(0, 0, 0);
+        this->scale = scale;
+        this->material = Material(material);
+        this->angle = 0;
+    }
     void virtual draw()=0;
     void virtual control(float timeSlice)=0;
     void virtual animate()=0;
@@ -228,10 +235,11 @@ public:
 
 struct ParametricSurface : Object {
 public:
-    ParametricSurface () : Object(Material (0,0,0,0,0), Vector(0, 0, 0), 0, Vector(0, 0, 0), Vector(1, 1, 1)) {
-        
+    ParametricSurface () {
     }
     ParametricSurface (Material material, Vector position, float angle, Vector rotate, Vector scale) : Object (material, position, angle, rotate, scale){
+    }
+    ParametricSurface (Material material, Vector scale) : Object (material, scale){
     }
     void draw () {
         material.setOGL();
@@ -257,6 +265,11 @@ public:
         a = b = c = 1;
     }
     Ellipsoid (Material m, float a, float b, float c, Vector position, float angle, Vector rotate, Vector scale) : ParametricSurface(m, position, angle, rotate, scale){
+        this->a = a;
+        this->b = b;
+        this->c = c;
+    }
+    Ellipsoid (Material m, float a, float b, float c, Vector scale) : ParametricSurface(m, scale){
         this->a = a;
         this->b = b;
         this->c = c;
@@ -293,6 +306,11 @@ struct Cylinder : ParametricSurface {
         this->height = height;
         this->radius = radius;
     }
+    Cylinder (Material m, float height, float radius, Vector scale) :ParametricSurface(m, position, angle, rotate, scale) {
+        this->height = height;
+        this->radius = radius;
+    }
+
     void vertexOGL (float u, float v) {
         u = u*2*pi;
         v = v*height;
@@ -329,14 +347,15 @@ public:
         Material mp1 = Material(0.4, 0.4, 1, 1, 10);
         Material mp2 = Material(1, 0.4, 0.4, 1, 10);
         Material mp3 = Material(0.4, 1, 0.4, 1, 10);
-        body = Ellipsoid(mb, 7, 7, 7, Vector(0, 0, 0), 0, Vector(0, 1, 0), Vector(1, 1, 1));
+        body = Ellipsoid(mb, 7, 7, 7, Vector(1, 1, 1));
         position = Vector(45, -30, -10);
         angle = 0;
+        rotate = Vector(0, 1, 0);
+        speed = Vector(0, 0, 0.1);
         rotate = Vector(0, 1, 0);
         pipe1 = Cylinder(mp1, 1, 1, Vector(0, 0, -15), 0, Vector(0, 0, 0), Vector(1, 1, 30));
         pipe2 = Cylinder(mp2, 1, 1, Vector(0, 15, 0), 90, Vector(1, 0, 0), Vector(1, 1, 30));
         pipe3 = Cylinder(mp3, 1, 1, Vector(-15, 0, 0), 90, Vector(0, 1, 0), Vector(1, 1, 30));
-        speed = Vector(0, 0, 0.1);
     }
     void draw () {
         glPushMatrix();
@@ -385,13 +404,16 @@ public:
     Planet () {
         Material mp = Material(1, 0, 0, 1, 2);
         Material ma = Material(0.1, 0.1, 0.9, 0.2, 2);
-        planet = Ellipsoid(mp, 18, 17, 18, Vector(0, -5, -37), 0, Vector(0,0,0), Vector(1.75,1.75,1.75));
-        atmosphere = Ellipsoid(ma, 20, 19, 18, Vector(-35, -5, 0), 0, Vector(0,0,0), Vector(1,1,1));
+        planet = Ellipsoid(mp, 18, 17, 18, Vector(1.75,1.75,1.75));
+        atmosphere = Ellipsoid(ma, 20, 19, 18, Vector(1,1,1));
+        position = Vector(0, -5, -37);
+        angle = 0;
+        rotate = Vector(0, 0, 0);
     }
     void draw () {
         glPushMatrix();
-        glTranslatef(planet.position.x, planet.position.y, planet.position.z);
-        glRotatef(planet.angle, planet.rotate.x, planet.rotate.y, planet.rotate.z);
+        glTranslatef(position.x, position.y, position.z);
+        glRotatef(angle, rotate.x, rotate.y, rotate.z);
         glScalef(planet.scale.x, planet.scale.y, planet.scale.z);
         glEnable(GL_TEXTURE_2D);
         glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
@@ -414,18 +436,7 @@ public:
     float times[5];
     Vector speeds[5];
     Vector nextPoint;
-    CRForgastest () : Object (Material(0.28, 0.28, 0.28, 1, 7), Vector(0, 0, 0), 0, Vector(0, 0, 0), Vector(1, 1, 1)){
-        controlPoints[0] = Vector(0, 0, 0);
-        times[0] = 3;
-        controlPoints[1] = Vector(10, 3, 0);
-        times[1] = 6;
-        controlPoints[2] = Vector(20, 3, 0);
-        times[2] = 9;
-        controlPoints[3] = Vector(25, 3, 0);
-        times[3] = 12;
-        controlPoints[4] = Vector(30, 6, 0);
-        times[4] = 16;
-        calculateSpeed();
+    CRForgastest () {
     }
     
     CRForgastest (Vector position, float angle, Vector rotate, Vector scale): Object (Material(0.28, 0.28, 0.28, 1, 7), position, angle, rotate, scale) {
@@ -579,7 +590,7 @@ public:
     SpaceStation () {
         napelem = Cube(Material(0.1, 0.2, 0.9, 1, 1), Vector(20, 8, 1), 0, Vector(0, 0, 0), Vector(5, 16, 0.04));
         body = CRForgastest (Vector(-2, 0, 0), 0, Vector(0, 0, 0), Vector(1.5, 1.5, 1.5));
-        hole = Ellipsoid(Material(0.2, 0.2, 0.2, 0, 0), 4.9, 4.9, 4.9, Vector(0, 0, 0), 0, Vector(0, 0, 0), Vector(1/2.5, 1/2.5, 1/2.5));
+        hole = Ellipsoid(Material(0.2, 0.2, 0.2, 0, 0), 4.9, 4.9, 4.9, Vector(16, -0.5, 2), 0, Vector(0, 0, 0), Vector(1/2.5, 1/2.5, 1/2.5));
     }
     void draw () {
         glPushMatrix();
@@ -594,8 +605,8 @@ public:
         glPopMatrix();
         body.draw();
         glPushMatrix();
-        glTranslatef(16, -0.5, 2);
-        glRotatef(0, 0, 0, 0);
+        glTranslatef(hole.position.x, hole.position.y, hole.position.z);
+        glRotatef(angle, hole.rotate.x, hole.rotate.y, hole.rotate.z);
         glScalef(hole.scale.x, hole.scale.y, hole.scale.z);
         hole.draw();
         glPopMatrix();
@@ -770,7 +781,7 @@ void onIdle( ) {
     
 }
 
-// ...Idaig modosithatodjjjjj
+// ...Idaig modosithatod
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 // A C++ program belepesi pontja, a main fuggvenyt mar nem szabad bantani
