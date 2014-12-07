@@ -385,7 +385,7 @@ public:
     Planet () {
         Material mp = Material(1, 0, 0, 1, 2);
         Material ma = Material(0.1, 0.1, 0.9, 0.2, 2);
-        planet = Ellipsoid(mp, 18, 17, 18, Vector(0, -5, -33), 0, Vector(0,0,0), Vector(1.5,1.5,1.5));
+        planet = Ellipsoid(mp, 18, 17, 18, Vector(0, -5, -37), 0, Vector(0,0,0), Vector(1.75,1.75,1.75));
         atmosphere = Ellipsoid(ma, 20, 19, 18, Vector(-35, -5, 0), 0, Vector(0,0,0), Vector(1,1,1));
     }
     void draw () {
@@ -649,6 +649,7 @@ public:
         }
      }
     void render () {
+        camera.lookAt = mir.position;
         camera.setOGL();
         sun.setOGL();
         float colour[3] = {1, 1, 1};
@@ -730,7 +731,12 @@ void onKeyboard(unsigned char key, int x, int y) {
         satellite.speed.z -= sinf((satellite.angle)*pi/180)*0.1;
         satellite.speed.x -= cosf((satellite.angle)*pi/180)*0.1;
     }
-    
+    if (key == 'i') {
+        satellite.speed.y += 0.1;
+    }
+    if (key == 'k') {
+        satellite.speed.y -= 0.1;
+    }
 }
 
 // Billentyuzet esemenyeket lekezelo fuggveny (felengedes)
