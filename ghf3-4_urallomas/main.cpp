@@ -176,11 +176,6 @@ public:
     }
 };
 
-struct Object {
-public:
-    void virtual draw()=0;
-};
-
 struct Material {
 public:
     float colour[4];
@@ -210,22 +205,34 @@ public:
     }
 };
 
-struct ParametricSurface : Object {
+struct Object {
 public:
     Vector position;
     Vector scale;
     Vector rotate;
     Material material;
     float angle;
-    ParametricSurface () {
-        
+    Object () {
+        material = Material(0, 0, 0, 0, 0);
+        rotate = position = Vector(0, 0, 0);
+        position = Vector(0, 0, 0);
     }
-    ParametricSurface (Material material, Vector position, float angle, Vector rotate, Vector scale) {
+    Object (Material material, Vector position, float angle, Vector rotate, Vector scale) {
         this->position = position;
         this->rotate = rotate;
         this->scale = scale;
         this->material = Material(material);
         this->angle = angle;
+    }
+    void virtual draw()=0;
+};
+
+struct ParametricSurface : Object {
+public:
+    ParametricSurface () : Object(Material (0,0,0,0,0), Vector(0, 0, 0), 0, Vector(0, 0, 0), Vector(1, 1, 1)) {
+        
+    }
+    ParametricSurface (Material material, Vector position, float angle, Vector rotate, Vector scale) : Object (material, position, angle, rotate, scale){
     }
     void draw () {
         material.setOGL();
@@ -247,7 +254,9 @@ public:
 struct Ellipsoid : ParametricSurface {
 public:
     float a,b,c;
-    Ellipsoid () {}
+    Ellipsoid () : ParametricSurface(Material (0,0,0,0,0), Vector(0,0,0), 0, Vector(0,0,0), Vector(1,1,1)){
+        a = b = c = 1;
+    }
     Ellipsoid (Material m, float a, float b, float c, Vector position, float angle, Vector rotate, Vector scale) : ParametricSurface(m, position, angle, rotate, scale){
         this->a = a;
         this->b = b;
@@ -312,9 +321,9 @@ public:
     Satellite () {
         Material m = Material(0.7, 0.5, 0.5, 1, 10);
         Material m2 = Material(0.4, 0.4, 0.4, 1, 10);
-        body = Ellipsoid(m, 10, 10, 10, Vector(45, 30, -40), 0, Vector(0, 0, 0), Vector(1, 1, 1));
+        body = Ellipsoid(m, 7, 7, 7, Vector(45, -30, -10), 0, Vector(0, 0, 0), Vector(1, 1, 1));
         pipe1 = Cylinder(m2, 1, 1, Vector(0, 0, -15), 0, Vector(0, 0, 0), Vector(1, 1, 30));
-        pipe2 = Cylinder(m2, 1, 1, Vector(0, 15, 0), 90, Vector(0, 0, 0), Vector(1, 1, 30));
+        pipe2 = Cylinder(m2, 1, 1, Vector(0, 15, 0), 90, Vector(1, 0, 0), Vector(1, 1, 30));
         pipe3 = Cylinder(m2, 1, 1, Vector(-15, 0, 0), 90, Vector(0, 1, 0), Vector(1, 1, 30));
     }
     void draw () {
@@ -353,9 +362,9 @@ public:
     Ellipsoid atmosphere;
     Planet () {
         Material mp = Material(1, 0, 0, 1, 2);
-        Material ma = Material(0, 0, 0.9, 0.2, 2);
-        planet = Ellipsoid(mp, 18, 17, 18, Vector(-30, 10, 0), 0, Vector(0,0,0), Vector(1,1,1));
-        atmosphere = Ellipsoid(ma, 20, 19, 18, Vector(-30, 10, 0), 0, Vector(0,0,0), Vector(1,1,1));
+        Material ma = Material(0.1, 0.1, 0.9, 0.2, 2);
+        planet = Ellipsoid(mp, 18, 17, 18, Vector(-35, -5, 0), 0, Vector(0,0,0), Vector(1,1,1));
+        atmosphere = Ellipsoid(ma, 20, 19, 18, Vector(-35, -5, 0), 0, Vector(0,0,0), Vector(1,1,1));
     }
     void draw () {
         glPushMatrix();
@@ -375,12 +384,205 @@ public:
     }
 };
 
+struct CRForgastest : Object {
+public:
+    Vector controlPoints[5];
+    float times[5];
+    Vector speeds[5];
+    Vector nextPoint;
+    CRForgastest () : Object (Material(0.28, 0.28, 0.28, 1, 7), Vector(-10, 0, 0), 0, Vector(0, 0, 0), Vector(2, 2, 2)){
+        controlPoints[0] = Vector(0, 0, 0);
+        times[0] = 3;
+        controlPoints[1] = Vector(10, 3, 0);
+        times[1] = 6;
+        controlPoints[2] = Vector(20, 3, 0);
+        times[2] = 9;
+        controlPoints[3] = Vector(25, 3, 0);
+        times[3] = 12;
+        controlPoints[4] = Vector(30, 6, 0);
+        times[4] = 16;
+        calculateSpeed();
+    }
+    
+    CRForgastest (Vector position, float angle, Vector rotate, Vector scale): Object (Material(0.28, 0.28, 0.28, 1, 7), position, angle, rotate, scale) {
+        controlPoints[0] = Vector(0, 0, 0);
+        times[0] = 3;
+        controlPoints[1] = Vector(10, 3, 0);
+        times[1] = 6;
+        controlPoints[2] = Vector(20, 3, 0);
+        times[2] = 9;
+        controlPoints[3] = Vector(25, 3, 0);
+        times[3] = 12;
+        controlPoints[4] = Vector(30, 6, 0);
+        times[4] = 16;
+        calculateSpeed();
+    }
+    
+    void calculateSpeed () {
+        float speedX, speedY, time, timePrev, timeNext;
+        Vector cp, cpPrev, cpNext;
+        speeds[0] = Vector(0,0,0);
+        for (int i = 1; i <  4; i++) {
+            cp = controlPoints[i];
+            cpPrev = controlPoints[i-1];
+            cpNext = controlPoints[i+1];
+            time = times[i];
+            timePrev = times[i-1];
+            timeNext = times[i+1];
+            speedX = 0.5 * (((cpNext.x - cp.x)/(timeNext - time)) + ((cp.x - cpPrev.x)/(time - timePrev)));
+            speedY = 0.5 * (((cpNext.y - cp.y)/(timeNext - time)) + ((cp.y - cpPrev.y)/(time - timePrev)));
+            speeds[i] = Vector(speedX, speedY);
+        }
+        speeds[5] = Vector(0,0);
+        return;
+    }
+
+    Vector doHermiteInterpolation (Vector cp, Vector cpNext, Vector speed, Vector speedNext, float time, float cpTime, float cpNextTime) {
+        Vector pointOnCurve, a0, a1, a2, a3;
+        float x, y;
+        a0 = cp;
+        a1 = speed;
+        x = ((3 * (cpNext.x - cp.x))/((float)pow((cpNextTime-cpTime), 2))) - ((speedNext.x + 2*speed.x)/(cpNextTime - cpTime));
+        y = ((3 * (cpNext.y - cp.y))/((float)pow((cpNextTime-cpTime), 2))) - ((speedNext.y + 2*speed.y)/(cpNextTime - cpTime));
+        a2 = Vector(x,y);
+        x = ((2 * (cp.x - cpNext.x))/((float)pow((cpNextTime-cpTime), 3))) + ((speedNext.x + speed.x)/((float)pow((cpNextTime-cpTime), 2)));
+        y = ((2 * (cp.y - cpNext.y))/((float)pow((cpNextTime-cpTime), 3))) + ((speedNext.y + speed.y)/((float)pow((cpNextTime-cpTime), 2)));
+        a3 = Vector(x,y);
+        
+        pointOnCurve.x = a3.x*((float)pow((time-cpTime), 3)) + a2.x*((float)pow((time-cpTime), 2)) + a1.x*(time-cpTime) + a0.x;
+        pointOnCurve.y = a3.y*((float)pow((time-cpTime), 3)) + a2.y*((float)pow((time-cpTime), 2)) + a1.y*(time-cpTime) + a0.y;
+        
+        return pointOnCurve;
+    }
+    void draw () {
+        float cpTime, cpNextTime, step;
+        Vector cp, cpNext, speed, speedNext, pointOnCurve;
+        material.setOGL();
+        glBegin(GL_QUADS);
+        for (int i = 0; i < 4; i++) {
+            cpTime = times[i];
+            cpNextTime = times[i+1];
+            cp = controlPoints[i];
+            cpNext = controlPoints[i+1];
+            speed = speeds[i];
+            speedNext = speeds[i+1];
+            step = (cpNextTime - cpTime) / 100.0;
+            for (float time = cpTime; time < cpNextTime; time = time + step) {
+                pointOnCurve = doHermiteInterpolation(cp, cpNext, speed, speedNext, time, cpTime, cpNextTime);
+                nextPoint = doHermiteInterpolation(cp, cpNext, speed, speedNext, time+step, cpTime, cpNextTime);
+                vertexOGL(pointOnCurve.x, pointOnCurve.y);
+            }
+        }
+        glEnd();
+    }
+    
+    void vertexOGL (float x, float y) {
+        float step = 2*pi/100.0;
+        for (float szog = 0; szog < 2*pi; szog += step) {
+            Vector pointOnQuad1 = Vector(x, y*sinf(szog), y*cosf(szog));
+            Vector pointOnQuad2 = Vector(nextPoint.x, nextPoint.y*sinf(szog), nextPoint.y*cosf(szog));
+            Vector pointOnQuad3 = Vector(nextPoint.x, nextPoint.y*sinf(szog+step), nextPoint.y*cosf(szog+step));
+            Vector pointOnQuad4 = Vector(x, y*sinf(szog+step), y*cosf(szog+step));
+            Vector normal = (pointOnQuad2 - pointOnQuad1) % (pointOnQuad4 - pointOnQuad1);
+            glNormal3f(normal.x, normal.y, normal.z);
+            glVertex3f(pointOnQuad1.x, pointOnQuad1.y, pointOnQuad1.z);
+            glVertex3f(pointOnQuad2.x, pointOnQuad2.y, pointOnQuad2.z);
+            glVertex3f(pointOnQuad3.x, pointOnQuad3.y, pointOnQuad3.z);
+            glVertex3f(pointOnQuad4.x, pointOnQuad4.y, pointOnQuad4.z);
+        }
+    }
+};
+
+struct Cube : Object {
+public:
+    Cube () : Object(){}
+    Cube (Material m, Vector position, float angle, Vector rotate, Vector scale) : Object(m, position, angle, rotate, scale) {}
+    void draw() {
+        material.setOGL();
+        glBegin(GL_QUADS);
+        
+        glNormal3f(0, 0, 1);
+        glVertex3f(0, 0, 0);
+        glVertex3f(0, -1, 0);
+        glVertex3f(1, -1, 0);
+        glVertex3f(1, 0, 0);
+        
+        glNormal3f(-1, 0, 0);
+        glVertex3f(0, 0, 0);
+        glVertex3f(0, 0, -1);
+        glVertex3f(0, -1, -1);
+        glVertex3f(0, -1, 0);
+        
+        glNormal3f(0, 1, 0);
+        glVertex3f(0, 0, 0);
+        glVertex3f(1, 0, 0);
+        glVertex3f(1, 0, -1);
+        glVertex3f(0, 0, -1);
+    
+        glNormal3f(0, 0, -1);
+        glVertex3f(0, 0, -1);
+        glVertex3f(0, -1, -1);
+        glVertex3f(1, -1, -1);
+        glVertex3f(1, 0, -1);
+        
+        glNormal3f(1, 0, 0);
+        glVertex3f(1, 0, 0);
+        glVertex3f(1, -1, 0);
+        glVertex3f(1, -1, -1);
+        glVertex3f(1, 0, -1);
+        
+        glNormal3f(0, -1, 0);
+        glVertex3f(0, -1, 0);
+        glVertex3f(1, -1, 0);
+        glVertex3f(1, -1, -1);
+        glVertex3f(0, -1, -1);
+        
+        glEnd();
+    }
+};
+
+struct SpaceStation : Object {
+public:
+    Cube napelem;
+    CRForgastest body;
+    Ellipsoid hole;
+    
+    SpaceStation () {
+        napelem = Cube(Material(0.1, 0.2, 0.9, 1, 1), Vector(20, 8, 1), 0, Vector(0, 0, 0), Vector(5, 16, 0.04));
+        body = CRForgastest (Vector(-33, 20, 0), 0, Vector(0, 0, 0), Vector(2.5, 2.5, 2.5));
+        hole = Ellipsoid(Material(0.2, 0.2, 0.2, 0, 0), 4.9, 4.9, 4.9, Vector(0, 0, 0), 0, Vector(0, 0, 0), Vector(1/2.5, 1/2.5, 1/2.5));
+    }
+    void draw () {
+        glPushMatrix();
+        glTranslatef(body.position.x, body.position.y, body.position.z);
+        glRotatef(body.angle, body.rotate.x, body.rotate.y, body.rotate.z);
+        glScalef(body.scale.x, body.scale.y, body.scale.z);
+        glPushMatrix();
+        glTranslatef(napelem.position.x, napelem.position.y, napelem.position.z);
+        glScalef(napelem.scale.x, napelem.scale.y, napelem.scale.z);
+        glRotatef(napelem.angle, napelem.rotate.x, napelem.rotate.y, napelem.rotate.z);
+        napelem.draw();
+        glPopMatrix();
+        body.draw();
+        glPushMatrix();
+        glTranslatef(16, -0.5, 2);
+        glRotatef(0, 0, 0, 0);
+        glScalef(hole.scale.x, hole.scale.y, hole.scale.z);
+        hole.draw();
+        glPopMatrix();
+        glPopMatrix();
+    }
+    
+};
+
 Planet planet;
 Satellite satellite;
+SpaceStation mir;
 
 struct Scene {
 public:
-    Object *objects[2];
+    Object *objects[3];
+    int numberOfObjects;
     Camera camera;
     Light sun;
     Scene () {
@@ -391,35 +593,35 @@ public:
         float specular[4] = {1, 1, 1, 1};
         float shininess = 128;
         sun = Light(pos, ambient, diffuse, specular, shininess);
-        satellite = Satellite();
-        planet = Planet();
+        mir = SpaceStation();
         objects[0] = &satellite;
         objects[1] = &planet;
+        objects[2] = &mir;
+        numberOfObjects = 3;
      }
     void render () {
         camera.setOGL();
         sun.setOGL();
-        for (int i = 0; i < 50; i++) {
-            Material m = Material(1, 1,  1, 1, 128);
-            Ellipsoid star (m, 0.5, 0.5, 0.5, Vector(rand()%80, rand()%100, -rand()%300), 0, Vector(0,0,0), Vector(1,1,1));
-            if (i % 2 == 0) {
-                star.position.x *= -1;
+        glBegin(GL_POINTS);
+        for (int i = 0; i < 200; i++) {
+            Vector position =  Vector(rand()%100, rand()%100, -(rand()%40));
+            if (i % 8 == 0) {
+                
+            }
+            else if (i % 2 == 0) {
+                position.x *= -1;
             }
             if (i % 4 == 0) {
-                star.position.y *= -1;
+                position.y *= -1;
             }
-            if (star.position.z > -100) {
-                star.position.z = -100;
+            if (position.z > -30) {
+                position.z = -30;
             
             }
-            glPushMatrix();
-            glTranslatef(star.position.x, star.position.y, star.position.z+120);
-            glRotatef(0, star.rotate.x, star.rotate.y, star.rotate.z);
-            glScalef(star.scale.x, star.scale.y, star.scale.z);
-            star.draw();
-            glPopMatrix();
+            glVertex3f(position.x, position.y, position.z);
         }
-        for (int i = 0; i < 2; i++) {
+        glEnd();
+        for (int i = 0; i < numberOfObjects; i++) {
             objects[i]->draw();
         }
     }
@@ -434,8 +636,17 @@ void onInitialization( ) {
     glBindTexture(GL_TEXTURE_2D, texid);
     int level = 0, border = 0, width = 128, height = 128;
     unsigned char image[width*height*3];
-    for (int i = 0; i < width*height*3; i++) {
-        image[i] = rand();
+    for (int i = 0; i < width*height*3; i=i+3) {
+        if(i % 8) {
+            image[i] = 208;
+            image[i+1] = 232;
+            image[i+2] = 74;
+        }
+        else {
+            image[i] = 0;
+            image[i+1] = 128;
+            image[i+2] = 0;
+        }
     }
     glTexImage2D(GL_TEXTURE_2D,level, GL_RGB, width, height, border, GL_RGB, GL_UNSIGNED_BYTE, &image[0]);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
