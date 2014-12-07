@@ -236,7 +236,7 @@ public:
     void draw () {
         material.setOGL();
         glBegin(GL_QUADS);
-        int ntess = 100;
+        int ntess = 40;
         for (int i = 0; i < ntess; i++) {
             for (int j = 0; j < ntess; j++) {
                 vertexOGL((float)i/ntess, (float)j/ntess);
@@ -322,18 +322,26 @@ public:
     Ellipsoid body;
     Cylinder pipe1, pipe2, pipe3;
     float newAngle;
+    Vector newPosition;
+    Vector speed;
     Satellite () {
-        Material m = Material(0.7, 0.5, 0.5, 1, 10);
-        Material m2 = Material(0.4, 0.4, 0.4, 1, 10);
-        body = Ellipsoid(m, 7, 7, 7, Vector(45, -30, -10), 0, Vector(0, 1, 0), Vector(1, 1, 1));
-        pipe1 = Cylinder(m2, 1, 1, Vector(0, 0, -15), 0, Vector(0, 0, 0), Vector(1, 1, 30));
-        pipe2 = Cylinder(m2, 1, 1, Vector(0, 15, 0), 90, Vector(1, 0, 0), Vector(1, 1, 30));
-        pipe3 = Cylinder(m2, 1, 1, Vector(-15, 0, 0), 90, Vector(0, 1, 0), Vector(1, 1, 30));
+        Material mb = Material(0.4, 0.4, 0.4, 1, 10);
+        Material mp1 = Material(0.4, 0.4, 1, 1, 10);
+        Material mp2 = Material(1, 0.4, 0.4, 1, 10);
+        Material mp3 = Material(0.4, 1, 0.4, 1, 10);
+        body = Ellipsoid(mb, 7, 7, 7, Vector(0, 0, 0), 0, Vector(0, 1, 0), Vector(1, 1, 1));
+        position = Vector(45, -30, -10);
+        angle = 0;
+        rotate = Vector(0, 1, 0);
+        pipe1 = Cylinder(mp1, 1, 1, Vector(0, 0, -15), 0, Vector(0, 0, 0), Vector(1, 1, 30));
+        pipe2 = Cylinder(mp2, 1, 1, Vector(0, 15, 0), 90, Vector(1, 0, 0), Vector(1, 1, 30));
+        pipe3 = Cylinder(mp3, 1, 1, Vector(-15, 0, 0), 90, Vector(0, 1, 0), Vector(1, 1, 30));
+        speed = Vector(0, 0, 0.1);
     }
     void draw () {
         glPushMatrix();
-        glTranslatef(body.position.x, body.position.y, body.position.z);
-        glRotatef(body.angle, body.rotate.x, body.rotate.y, body.rotate.z);
+        glTranslatef(position.x, position.y, position.z);
+        glRotatef(angle, rotate.x, rotate.y, rotate.z);
         glScalef(body.scale.x, body.scale.y, body.scale.z);
         body.draw();
         glPushMatrix();
@@ -358,10 +366,13 @@ public:
     }
     void control(float timeSlice) {
         float anglePerMs = 0.01;
-        newAngle = anglePerMs * timeSlice + body.angle;
+        newAngle = anglePerMs * timeSlice + angle;
+        newPosition = Vector(position.x+speed.x, position.y+speed.y, position.z-speed.z);
+        
     }
     void animate() {
-        body.angle = newAngle;
+        angle = newAngle;
+        position = newPosition;
     }
 };
 
@@ -703,7 +714,22 @@ void onDisplay( ) {
 
 // Billentyuzet esemenyeket lekezelo fuggveny (lenyomas)
 void onKeyboard(unsigned char key, int x, int y) {
-    if (key == 'd') glutPostRedisplay( ); 		// d beture rajzold ujra a kepet
+    if (key == 'w') {
+        satellite.speed.z += sinf((satellite.angle+90)*pi/180)*0.1;
+        satellite.speed.x += cosf((satellite.angle+90)*pi/180)*0.1;
+    }
+    if (key == 's') {
+        satellite.speed.z -= sinf((satellite.angle+90)*pi/180)*0.1;
+        satellite.speed.x -= cosf((satellite.angle+90)*pi/180)*0.1;
+    }
+    if (key == 'd') {
+        satellite.speed.z += sinf((satellite.angle)*pi/180)*0.1;
+        satellite.speed.x += cosf((satellite.angle)*pi/180)*0.1;
+    }
+    if (key == 'a') {
+        satellite.speed.z -= sinf((satellite.angle)*pi/180)*0.1;
+        satellite.speed.x -= cosf((satellite.angle)*pi/180)*0.1;
+    }
     
 }
 
