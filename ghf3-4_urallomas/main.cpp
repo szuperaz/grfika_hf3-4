@@ -213,9 +213,6 @@ public:
     Material material;
     float angle;
     Object () {
-        material = Material(0, 0, 0, 0, 0);
-        rotate = position = Vector(0, 0, 0);
-        position = Vector(0, 0, 0);
     }
     Object (Material material, Vector position, float angle, Vector rotate, Vector scale) {
         this->position = position;
@@ -225,6 +222,8 @@ public:
         this->angle = angle;
     }
     void virtual draw()=0;
+    void virtual control(float timeSlice)=0;
+    void virtual animate()=0;
 };
 
 struct ParametricSurface : Object {
@@ -237,7 +236,7 @@ public:
     void draw () {
         material.setOGL();
         glBegin(GL_QUADS);
-        int ntess = 150;
+        int ntess = 100;
         for (int i = 0; i < ntess; i++) {
             for (int j = 0; j < ntess; j++) {
                 vertexOGL((float)i/ntess, (float)j/ntess);
@@ -283,6 +282,8 @@ public:
         glNormal3f(normal.x, normal.y, normal.z);
         glVertex3f(rX, rY, rZ);
     }
+    void control(float timeSlice) {}
+    void animate() {}
 };
 
 struct Cylinder : ParametricSurface {
@@ -312,16 +313,19 @@ struct Cylinder : ParametricSurface {
         glNormal3f(normal.x, normal.y, normal.z);
         glVertex3f(rX, rY, rZ);
     }
+    void control(float timeSlice) {}
+    void animate() {}
 };
 
 struct Satellite : Object {
 public:
     Ellipsoid body;
     Cylinder pipe1, pipe2, pipe3;
+    float newAngle;
     Satellite () {
         Material m = Material(0.7, 0.5, 0.5, 1, 10);
         Material m2 = Material(0.4, 0.4, 0.4, 1, 10);
-        body = Ellipsoid(m, 7, 7, 7, Vector(45, -30, -10), 0, Vector(0, 0, 0), Vector(1, 1, 1));
+        body = Ellipsoid(m, 7, 7, 7, Vector(45, -30, -10), 0, Vector(0, 1, 0), Vector(1, 1, 1));
         pipe1 = Cylinder(m2, 1, 1, Vector(0, 0, -15), 0, Vector(0, 0, 0), Vector(1, 1, 30));
         pipe2 = Cylinder(m2, 1, 1, Vector(0, 15, 0), 90, Vector(1, 0, 0), Vector(1, 1, 30));
         pipe3 = Cylinder(m2, 1, 1, Vector(-15, 0, 0), 90, Vector(0, 1, 0), Vector(1, 1, 30));
@@ -352,6 +356,13 @@ public:
         glPopMatrix();
         glPopMatrix();
     }
+    void control(float timeSlice) {
+        float anglePerMs = 0.01;
+        newAngle = anglePerMs * timeSlice + body.angle;
+    }
+    void animate() {
+        body.angle = newAngle;
+    }
 };
 
 unsigned int texid;
@@ -363,7 +374,7 @@ public:
     Planet () {
         Material mp = Material(1, 0, 0, 1, 2);
         Material ma = Material(0.1, 0.1, 0.9, 0.2, 2);
-        planet = Ellipsoid(mp, 18, 17, 18, Vector(-35, -5, 0), 0, Vector(0,0,0), Vector(1,1,1));
+        planet = Ellipsoid(mp, 18, 17, 18, Vector(0, -5, -33), 0, Vector(0,0,0), Vector(1.5,1.5,1.5));
         atmosphere = Ellipsoid(ma, 20, 19, 18, Vector(-35, -5, 0), 0, Vector(0,0,0), Vector(1,1,1));
     }
     void draw () {
@@ -382,6 +393,8 @@ public:
         glDisable(GL_BLEND);
         glPopMatrix();
     }
+    void control(float timeSlice) {}
+    void animate() {}
 };
 
 struct CRForgastest : Object {
@@ -390,7 +403,7 @@ public:
     float times[5];
     Vector speeds[5];
     Vector nextPoint;
-    CRForgastest () : Object (Material(0.28, 0.28, 0.28, 1, 7), Vector(-10, 0, 0), 0, Vector(0, 0, 0), Vector(2, 2, 2)){
+    CRForgastest () : Object (Material(0.28, 0.28, 0.28, 1, 7), Vector(0, 0, 0), 0, Vector(0, 0, 0), Vector(1, 1, 1)){
         controlPoints[0] = Vector(0, 0, 0);
         times[0] = 3;
         controlPoints[1] = Vector(10, 3, 0);
@@ -474,6 +487,7 @@ public:
             }
         }
         glEnd();
+        
     }
     
     void vertexOGL (float x, float y) {
@@ -491,6 +505,8 @@ public:
             glVertex3f(pointOnQuad4.x, pointOnQuad4.y, pointOnQuad4.z);
         }
     }
+    void control(float timeSlice) {}
+    void animate() {}
 };
 
 struct Cube : Object {
@@ -539,6 +555,8 @@ public:
         
         glEnd();
     }
+    void control(float timeSlice) {}
+    void animate() {}
 };
 
 struct SpaceStation : Object {
@@ -549,7 +567,7 @@ public:
     
     SpaceStation () {
         napelem = Cube(Material(0.1, 0.2, 0.9, 1, 1), Vector(20, 8, 1), 0, Vector(0, 0, 0), Vector(5, 16, 0.04));
-        body = CRForgastest (Vector(-33, 20, 0), 0, Vector(0, 0, 0), Vector(2.5, 2.5, 2.5));
+        body = CRForgastest (Vector(-2, 0, 0), 0, Vector(0, 0, 0), Vector(1.5, 1.5, 1.5));
         hole = Ellipsoid(Material(0.2, 0.2, 0.2, 0, 0), 4.9, 4.9, 4.9, Vector(0, 0, 0), 0, Vector(0, 0, 0), Vector(1/2.5, 1/2.5, 1/2.5));
     }
     void draw () {
@@ -573,18 +591,22 @@ public:
         glPopMatrix();
     }
     
+    void control(float timeSlice) {}
+    void animate() {}
+    
 };
 
 Planet planet;
 Satellite satellite;
 SpaceStation mir;
+Object *objects[3];
+int numberOfObjects;
 
 struct Scene {
 public:
-    Object *objects[3];
-    int numberOfObjects;
     Camera camera;
     Light sun;
+    Vector stars[200];
     Scene () {
         camera = Camera(Vector(0,0,100), Vector(0,0,0), Vector(0,1,0), 65, 1, 5, 400);
         float pos[4] = {0, 0, 100, 0};
@@ -597,12 +619,6 @@ public:
         objects[0] = &satellite;
         objects[1] = &planet;
         objects[2] = &mir;
-        numberOfObjects = 3;
-     }
-    void render () {
-        camera.setOGL();
-        sun.setOGL();
-        glBegin(GL_POINTS);
         for (int i = 0; i < 200; i++) {
             Vector position =  Vector(rand()%100, rand()%100, -(rand()%40));
             if (i % 8 == 0) {
@@ -616,9 +632,25 @@ public:
             }
             if (position.z > -30) {
                 position.z = -30;
-            
+                
             }
-            glVertex3f(position.x, position.y, position.z);
+            stars[i] = position;
+        }
+     }
+    void render () {
+        camera.setOGL();
+        sun.setOGL();
+        float colour[3] = {1, 1, 1};
+        float shininess = 128;
+        glMaterialfv(GL_FRONT, GL_DIFFUSE, colour);
+        glMaterialfv(GL_FRONT, GL_AMBIENT, colour);
+        glMaterialfv(GL_FRONT, GL_SPECULAR, colour);
+        glMaterialfv(GL_FRONT, GL_SPECULAR, colour);
+        glMaterialf(GL_FRONT, GL_SHININESS, shininess);
+        glBegin(GL_POINTS);
+        for (int i = 0; i < 200; i++) {
+            Vector pos = stars[i];
+            glVertex3f(pos.x, pos.y, pos.z);
         }
         glEnd();
         for (int i = 0; i < numberOfObjects; i++) {
@@ -629,6 +661,7 @@ public:
 };
 
 Scene scene;
+float prevTime;
 
 // Inicializacio, a program futasanak kezdeten, az OpenGL kontextus letrehozasa utan hivodik meg (ld. main() fv.)
 void onInitialization( ) {
@@ -654,7 +687,9 @@ void onInitialization( ) {
     glEnable(GL_NORMALIZE);
     glEnable(GL_LIGHTING);
     glEnable(GL_DEPTH_TEST);
+    numberOfObjects = 3;
     scene = Scene();
+    prevTime = 0;
 }
 
 // Rajzolas, ha az alkalmazas ablak ervenytelenne valik, akkor ez a fuggveny hivodik meg
@@ -691,7 +726,15 @@ void onMouseMotion(int x, int y)
 
 // `Idle' esemenykezelo, jelzi, hogy az ido telik, az Idle esemenyek frekvenciajara csak a 0 a garantalt minimalis ertek
 void onIdle( ) {
-    long time = glutGet(GLUT_ELAPSED_TIME);		// program inditasa ota eltelt ido
+    float nextTime =  (float)glutGet(GLUT_ELAPSED_TIME);
+    for (int i = 0; i < numberOfObjects; i++) {
+        objects[i]->control(nextTime - prevTime);
+    }
+    for (int i = 0; i < numberOfObjects; i++) {
+        objects[i]->animate();
+    }
+    prevTime = nextTime;
+    onDisplay();
     
 }
 
