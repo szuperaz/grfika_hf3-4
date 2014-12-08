@@ -351,7 +351,7 @@ public:
         position = Vector(45, -30, -10);
         angle = 0;
         rotate = Vector(0, 1, 0);
-        speed = Vector(0, 0, 0.1);
+        speed = Vector(0, 0, 0.01);
         rotate = Vector(0, 1, 0);
         pipe1 = Cylinder(mp1, 1, 1, Vector(0, 0, -15), 0, Vector(0, 0, 0), Vector(1, 1, 30));
         pipe2 = Cylinder(mp2, 1, 1, Vector(0, 15, 0), 90, Vector(1, 0, 0), Vector(1, 1, 30));
@@ -384,7 +384,7 @@ public:
         glPopMatrix();
     }
     void control(float timeSlice) {
-        float anglePerMs = 0.01;
+        float anglePerMs = 0.006;
         newAngle = anglePerMs * timeSlice + angle;
         newPosition = Vector(position.x+speed.x, position.y+speed.y, position.z-speed.z);
         
@@ -404,9 +404,9 @@ public:
     Planet () {
         Material mp = Material(1, 0, 0, 1, 2);
         Material ma = Material(0.1, 0.1, 0.9, 0.2, 2);
-        planet = Ellipsoid(mp, 18, 17, 18, Vector(1.75,1.75,1.75));
+        planet = Ellipsoid(mp, 18, 17, 18, Vector(2, 2, 2));
         atmosphere = Ellipsoid(ma, 20, 19, 18, Vector(1,1,1));
-        position = Vector(0, -5, -37);
+        position = Vector(0, -5, -50);
         angle = 0;
         rotate = Vector(0, 0, 0);
     }
@@ -440,15 +440,15 @@ public:
     }
     
     CRForgastest (Vector position, float angle, Vector rotate, Vector scale): Object (Material(0.28, 0.28, 0.28, 1, 7), position, angle, rotate, scale) {
-        controlPoints[0] = Vector(0, 0, 0);
+        controlPoints[0] = Vector(-15, 0, 0);
         times[0] = 3;
-        controlPoints[1] = Vector(10, 3, 0);
+        controlPoints[1] = Vector(-5, 3, 0);
         times[1] = 6;
-        controlPoints[2] = Vector(20, 3, 0);
+        controlPoints[2] = Vector(5, 3, 0);
         times[2] = 9;
-        controlPoints[3] = Vector(25, 3, 0);
+        controlPoints[3] = Vector(10, 3, 0);
         times[3] = 12;
-        controlPoints[4] = Vector(30, 6, 0);
+        controlPoints[4] = Vector(15, 6, 0);
         times[4] = 16;
         calculateSpeed();
     }
@@ -501,7 +501,7 @@ public:
             cpNext = controlPoints[i+1];
             speed = speeds[i];
             speedNext = speeds[i+1];
-            step = (cpNextTime - cpTime) / 100.0;
+            step = (cpNextTime - cpTime) / 100;
             for (float time = cpTime; time < cpNextTime; time = time + step) {
                 pointOnCurve = doHermiteInterpolation(cp, cpNext, speed, speedNext, time, cpTime, cpNextTime);
                 nextPoint = doHermiteInterpolation(cp, cpNext, speed, speedNext, time+step, cpTime, cpNextTime);
@@ -586,11 +586,13 @@ public:
     Cube napelem;
     CRForgastest body;
     Ellipsoid hole;
+    float newAngle;
+    float newPosition;
     
     SpaceStation () {
-        napelem = Cube(Material(0.1, 0.2, 0.9, 1, 1), Vector(20, 8, 1), 0, Vector(0, 0, 0), Vector(5, 16, 0.04));
-        body = CRForgastest (Vector(-2, 0, 0), 0, Vector(0, 0, 0), Vector(1.5, 1.5, 1.5));
-        hole = Ellipsoid(Material(0.2, 0.2, 0.2, 0, 0), 4.9, 4.9, 4.9, Vector(16, -0.5, 2), 0, Vector(0, 0, 0), Vector(1/2.5, 1/2.5, 1/2.5));
+        napelem = Cube(Material(0.1, 0.2, 0.9, 1, 1), Vector(5, 8, 1), 0, Vector(0, 0, 0), Vector(5, 16, 0.04));
+        body = CRForgastest (Vector(0, 0, 0), 0, Vector(0, 1, 1), Vector(1.25, 1.25, 1.25));
+        hole = Ellipsoid(Material(0.4, 0.2, 0.2, 0, 0), 4.9, 4.9, 4.9, Vector(0, 0, 2), 0, Vector(0, 0, 0), Vector(1/2.5, 1/2.5, 1/2.5));
     }
     void draw () {
         glPushMatrix();
@@ -613,8 +615,13 @@ public:
         glPopMatrix();
     }
     
-    void control(float timeSlice) {}
-    void animate() {}
+    void control(float timeSlice) {
+        float anglePerMs = 0.01;
+        newAngle = anglePerMs * timeSlice + body.angle;
+    }
+    void animate() {
+        body.angle = newAngle;
+    }
     
 };
 
@@ -641,6 +648,8 @@ public:
         objects[0] = &satellite;
         objects[1] = &planet;
         objects[2] = &mir;
+        camera.lookAt = mir.hole.position;
+        camera.eye = Vector(camera.lookAt.x, camera.lookAt.y, camera.lookAt.z + 30);
         for (int i = 0; i < 200; i++) {
             Vector position =  Vector(rand()%100, rand()%100, -(rand()%40));
             if (i % 8 == 0) {
@@ -660,7 +669,6 @@ public:
         }
      }
     void render () {
-        camera.lookAt = mir.position;
         camera.setOGL();
         sun.setOGL();
         float colour[3] = {1, 1, 1};
