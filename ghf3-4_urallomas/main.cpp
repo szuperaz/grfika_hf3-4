@@ -231,7 +231,12 @@ public:
 
 struct Cone : ParametricSurface {
     float r, h;
+    Cone () {}
     Cone (Material m, float r, float h, Vector position, float angle, Vector rotate, Vector scale) : ParametricSurface(m, position, angle, rotate, scale) {
+        this->r = r;
+        this->h = h;
+    }
+    Cone (Material m, float r, float h, Vector scale) : ParametricSurface(m, scale) {
         this->r = r;
         this->h = h;
     }
@@ -334,6 +339,16 @@ struct Cylinder : ParametricSurface {
     void animate() {}
 };
 
+struct Fire {
+public:
+    Fire() {
+        fire = Cone();
+    }
+    bool isOn;
+    Cone fire;
+    float timeFromStart;
+};
+
 struct Satellite : Object {
 public:
     Ellipsoid body;
@@ -341,20 +356,44 @@ public:
     float newAngle;
     Vector newPosition;
     Vector speed;
+    Fire fires[6];
     Satellite () {
         Material mb = Material(0.3, 0.3, 0.3, 1, 5);
         Material mp1 = Material(0.3, 0.3, 1, 1, 5);
         Material mp2 = Material(1, 0.3, 0.3, 1, 5);
         Material mp3 = Material(0.3, 1, 0.3, 1, 5);
-        body = Ellipsoid(mb, 7, 7, 7, Vector(1, 1, 1));
+        body = Ellipsoid(mb, 4, 4, 4, Vector(1, 1, 1));
         position = Vector(45, -30, -10);
         angle = 0;
         rotate = Vector(0, 1, 0);
         speed = Vector(0, 0, 0.01);
         rotate = Vector(0, 1, 0);
-        pipe1 = Cylinder(mp1, 1, 1, Vector(0, 0, -15), 0, Vector(0, 0, 0), Vector(1, 1, 30));
-        pipe2 = Cylinder(mp2, 1, 1, Vector(0, 15, 0), 90, Vector(1, 0, 0), Vector(1, 1, 30));
-        pipe3 = Cylinder(mp3, 1, 1, Vector(-15, 0, 0), 90, Vector(0, 1, 0), Vector(1, 1, 30));
+        pipe1 = Cylinder(mp1, 1, 1, Vector(0, 0, -10), 0, Vector(0, 0, 0), Vector(1, 1, 20));
+        pipe2 = Cylinder(mp2, 1, 1, Vector(0, 10, 0), 90, Vector(1, 0, 0), Vector(1, 1, 20));
+        pipe3 = Cylinder(mp3, 1, 1, Vector(-10, 0, 0), 90, Vector(0, 1, 0), Vector(1, 1, 20));
+        for (int i = 0; i < 6; i++) {
+            fires[i].isOn = false;
+            fires[i].fire = Cone(Material(1, 0, 0, 1, 2), 1, 2, Vector(1,1,1));
+            fires[i].timeFromStart = 0;
+        }
+        fires[0].fire.position = Vector(pipe1.position.x, pipe1.position.y, pipe1.position.z);
+        fires[0].fire.angle = 180;
+        fires[0].fire.rotate = Vector(0, 0, 0);
+        fires[1].fire.position = Vector(pipe1.position.x, pipe1.position.y, pipe1.position.z+20);
+        fires[1].fire.angle = 0;
+        fires[1].fire.rotate = Vector(0, 0, 0);
+        fires[2].fire.position = Vector(pipe2.position.x, pipe2.position.y, pipe2.position.z);
+        fires[2].fire.angle = -90;
+        fires[2].fire.rotate = Vector(0, 0, 0);
+        fires[3].fire.position = Vector(pipe2.position.x, pipe2.position.y-20, pipe2.position.z);
+        fires[3].fire.angle = 90;
+        fires[3].fire.rotate = Vector(0, 0, 0);
+        fires[4].fire.position = Vector(pipe3.position.x, pipe3.position.y, pipe3.position.z);
+        fires[4].fire.angle = -90;
+        fires[4].fire.rotate = Vector(0, 1, 0);
+        fires[5].fire.position = Vector(pipe3.position.x+20, pipe3.position.y, pipe3.position.z);
+        fires[5].fire.angle = 90;
+        fires[5].fire.rotate = Vector(0, 1, 0);
     }
     void draw () {
         glPushMatrix();
@@ -362,6 +401,15 @@ public:
         glRotatef(angle, rotate.x, rotate.y, rotate.z);
         glScalef(body.scale.x, body.scale.y, body.scale.z);
         body.draw();
+        for (int i = 0; i < 6; i++) {
+            if (fires[i].isOn) {
+                glPushMatrix();
+                glTranslatef(fires[i].fire.position.x, fires[i].fire.position.y, fires[i].fire.position.z);
+                glRotatef(fires[i].fire.angle, fires[i].fire.rotate.x, fires[i].fire.rotate.y, fires[i].fire.rotate.z);
+                fires[i].fire.draw();
+                glPopMatrix();
+            }
+        }
         glPushMatrix();
         glTranslatef(pipe1.position.x, pipe1.position.y, pipe1.position.z);
         glRotatef(pipe1.angle, pipe1.rotate.x, pipe1.rotate.y, pipe1.rotate.z);
@@ -386,6 +434,15 @@ public:
         float anglePerMs = 0.006;
         newAngle = anglePerMs * timeSlice + angle;
         newPosition = Vector(position.x+speed.x, position.y+speed.y, position.z-speed.z);
+        for (int i=0; i < 6; i++) {
+            if (fires[i].isOn) {
+                fires[i].timeFromStart += timeSlice;
+                if (fires[i].timeFromStart >= 1000) {
+                    fires[i].timeFromStart = 0;
+                    fires[i].isOn = false;
+                }
+            }
+        }
         
     }
     void animate() {
@@ -822,25 +879,31 @@ void onDisplay( ) {
 // Billentyuzet esemenyeket lekezelo fuggveny (lenyomas)
 void onKeyboard(unsigned char key, int x, int y) {
     if (key == 'w') {
+        satellite.fires[1].isOn = true;
         satellite.speed.z += sinf((satellite.angle+90)*pi/180)*0.1;
         satellite.speed.x += cosf((satellite.angle+90)*pi/180)*0.1;
     }
     if (key == 's') {
+        satellite.fires[0].isOn = true;
         satellite.speed.z -= sinf((satellite.angle+90)*pi/180)*0.1;
         satellite.speed.x -= cosf((satellite.angle+90)*pi/180)*0.1;
     }
     if (key == 'd') {
+        satellite.fires[4].isOn = true;
         satellite.speed.z += sinf((satellite.angle)*pi/180)*0.1;
         satellite.speed.x += cosf((satellite.angle)*pi/180)*0.1;
     }
     if (key == 'a') {
+        satellite.fires[5].isOn = true;
         satellite.speed.z -= sinf((satellite.angle)*pi/180)*0.1;
         satellite.speed.x -= cosf((satellite.angle)*pi/180)*0.1;
     }
     if (key == 'i') {
+        satellite.fires[3].isOn = true;
         satellite.speed.y += 0.1;
     }
     if (key == 'k') {
+        satellite.fires[2].isOn = true;
         satellite.speed.y -= 0.1;
     }
 }
