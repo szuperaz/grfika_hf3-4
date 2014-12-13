@@ -44,6 +44,7 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #if defined(__APPLE__)
 #include <OpenGL/gl.h>
@@ -593,8 +594,8 @@ public:
         newAngle = anglePerMs * timeSlice + body.angle;
         float deltaFi = timeSlice*2*pi/100000;
         newPosition.x = body.position.x;
-        newPosition.y = 75*sinf(fi+deltaFi);
-        newPosition.z = 100*cosf(fi + deltaFi);
+        newPosition.y = 90*sinf(fi + deltaFi);
+        newPosition.z = 120*cosf(fi + deltaFi);
         fi += deltaFi;
     }
     void animate() {
@@ -648,23 +649,39 @@ public:
         gluLookAt(eye.x, eye.y, eye.z, lookAt.x, lookAt.y, lookAt.z, up.x, up.y, up.z);
     }
     void control (float timeslice) {
+        x = tavolsag - kotelhossz;
+        if (x < 0) {
+            x = 0;
+        }
+        float F = -k*x;
+        a = F/m;
         if (dir) {
-            tavolsag = tavolsag + v*timeslice;
-            if (tavolsag >= kotelhossz) {
-                tavolsag = kotelhossz;
+            v = v + a*timeslice;
+            if (v <= 0) {
                 dir = false;
+                v = 0;
+            }
+            else {
+               tavolsag = tavolsag + v*timeslice;
             }
         }
         else {
+            v = v - a*timeslice;
             tavolsag = tavolsag - v*timeslice;
             if (tavolsag <= 0) {
+                tavolsag = 0;
                 dir = true;
+                v = rand()%8;
+                if (v == 0) {
+                    v = 2;
+                }
+                v = v/1000;
             }
         }
     }
     void animate () {
         lookAt = mir.body.position;
-        eye = Vector(lookAt.x, lookAt.y, lookAt.z +tavolsag+14);
+        eye = Vector(lookAt.x, lookAt.y, lookAt.z+tavolsag+14);
     }
 };
 
@@ -756,12 +773,13 @@ void onInitialization( ) {
     glEnable(GL_DEPTH_TEST);
     numberOfObjects = 3;
     scene = Scene();
-    k = 5;
+    k = 0.0005;
     m = 1;
     v = 0.004;
     tavolsag = 0;
-    kotelhossz = 10;
+    kotelhossz = 30;
     dir = true;
+    a = 0;
     prevTime = 0;
 }
 
