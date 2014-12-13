@@ -431,7 +431,7 @@ public:
         glPopMatrix();
     }
     void control(float timeSlice) {
-        float anglePerMs = 0.006;
+        float anglePerMs = 0.009;
         newAngle = anglePerMs * timeSlice + angle;
         newPosition = Vector(position.x+speed.x, position.y+speed.y, position.z-speed.z);
         for (int i=0; i < 6; i++) {
@@ -931,7 +931,7 @@ void onIdle( ) {
     for (int i = 0; i < numberOfObjects; i++) {
         objects[i]->control(now - prevTime);
     }
-    //camera.control(now - prevTime);
+    camera.control(now - prevTime);
     for (int i = 0; i < numberOfObjects; i++) {
         objects[i]->animate();
     }
