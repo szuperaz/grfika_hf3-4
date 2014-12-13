@@ -44,7 +44,6 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <stdlib.h>
-#include <stdio.h>
 
 #if defined(__APPLE__)
 #include <OpenGL/gl.h>
@@ -230,6 +229,34 @@ public:
     void virtual vertexOGL(float u, float v) =0;
 };
 
+struct Cone : ParametricSurface {
+    float r, h;
+    Cone (Material m, float r, float h, Vector position, float angle, Vector rotate, Vector scale) : ParametricSurface(m, position, angle, rotate, scale) {
+        this->r = r;
+        this->h = h;
+    }
+    void vertexOGL(float u, float v) {
+        float normalX, normalY, normalZ, rX, rY, rZ;
+        Vector du, dv, normal;
+        rX = r*(1-v)*cosf(2*pi*u);
+        rY = r*(1-v)*sinf(2*pi*u);
+        rZ = h*v;
+        normalX = -r*2*pi*(v-1)*sinf(2*pi*u);
+        normalY = r*2*pi*(v-1)*cosf(2*pi*u);
+        normalZ = 0;
+        du = Vector(normalX, normalY, normalZ);
+        normalX = -r*cosf(2*pi*u);
+        normalY = -r*sinf(2*pi*u);
+        normalZ = h;
+        dv = Vector(normalX, normalY, normalZ);
+        normal = dv % du;
+        glNormal3f(normal.x, normal.y, normal.z);
+        glVertex3f(rX, rY, rZ);
+    }
+    void control(float timeSlice) {}
+    void animate() {}
+};
+
 struct Ellipsoid : ParametricSurface {
 public:
     float a,b,c;
@@ -255,15 +282,15 @@ public:
         rX = a * cosf(u) * sinf(v);
         rY = b * sinf(u) * sinf(v);
         rZ = c * cosf(v);
-        normalX = -a * sinf(u)*sinf(v);
-        normalY = b * cosf(u) * sinf(v);
+        normalX = -a * 2*pi * sinf(u)*sinf(v);
+        normalY = b * 2 * pi * cosf(u) * sinf(v);
         normalZ = 0;
         du = Vector(normalX, normalY, normalZ);
-        normalX = a * cosf(u) * cosf(v);
-        normalY = b * sinf(u) * cosf(v);
-        normalZ = -c * sinf(v);
+        normalX = a * pi * cosf(u) * cosf(v);
+        normalY = b * pi* sinf(u) * cosf(v);
+        normalZ = -c * pi * sinf(v);
         dv = Vector(normalX, normalY, normalZ);
-        normal = (du % dv);
+        normal = dv % du;
         glNormal3f(normal.x, normal.y, normal.z);
         glVertex3f(rX, rY, rZ);
     }
@@ -291,15 +318,15 @@ struct Cylinder : ParametricSurface {
         rX = radius * cosf(u);
         rY = radius * sinf(u);
         rZ = v;
-        normalX = -radius * sinf(u);
-        normalY = radius * cosf(u);
+        normalX = -radius * 2 *pi * sinf(u);
+        normalY = radius * 2*pi* cosf(u);
         normalZ = 0;
         du = Vector(normalX, normalY, normalZ);
         normalX = 0;
         normalY = 0;
         normalZ = height;
         dv = Vector(normalX, normalY, normalZ);
-        normal = (du % dv);
+        normal = du % dv;
         glNormal3f(normal.x, normal.y, normal.z);
         glVertex3f(rX, rY, rZ);
     }
@@ -315,10 +342,10 @@ public:
     Vector newPosition;
     Vector speed;
     Satellite () {
-        Material mb = Material(0.4, 0.4, 0.4, 1, 10);
-        Material mp1 = Material(0.4, 0.4, 1, 1, 10);
-        Material mp2 = Material(1, 0.4, 0.4, 1, 10);
-        Material mp3 = Material(0.4, 1, 0.4, 1, 10);
+        Material mb = Material(0.3, 0.3, 0.3, 1, 5);
+        Material mp1 = Material(0.3, 0.3, 1, 1, 5);
+        Material mp2 = Material(1, 0.3, 0.3, 1, 5);
+        Material mp3 = Material(0.3, 1, 0.3, 1, 5);
         body = Ellipsoid(mb, 7, 7, 7, Vector(1, 1, 1));
         position = Vector(45, -30, -10);
         angle = 0;
@@ -471,7 +498,7 @@ public:
             cpNext = controlPoints[i+1];
             speed = speeds[i];
             speedNext = speeds[i+1];
-            step = (cpNextTime - cpTime) / 100;
+            step = (cpNextTime - cpTime) / 50;
             for (float time = cpTime; time < cpNextTime; time = time + step) {
                 pointOnCurve = doHermiteInterpolation(cp, cpNext, speed, speedNext, time, cpTime, cpNextTime);
                 nextPoint = doHermiteInterpolation(cp, cpNext, speed, speedNext, time+step, cpTime, cpNextTime);
@@ -563,7 +590,7 @@ public:
     SpaceStation () {
         napelem = Cube(Material(0.1, 0.2, 0.9, 1, 1), Vector(5, 8, 1), 0, Vector(0, 0, 0), Vector(5, 16, 0.04));
         body = CRForgastest (Vector(0, 0, 0), 0, Vector(0, 1, 1), Vector(1.25, 1.25, 1.25));
-        hole = Ellipsoid(Material(0.4, 0.2, 0.2, 0, 0), 4.9, 4.9, 4.9, Vector(0, 0, 1.7), 0, Vector(0, 0, 0), Vector(1/2.5, 1/2.5, 1/2.5));
+        hole = Ellipsoid(Material(0.2, 0.1, 0.1, 0, 0), 4.9, 4.9, 4.9, Vector(0, 0, 1.7), 0, Vector(0, 0, 0), Vector(1/2.5, 1/2.5, 1/2.5));
         fi = 0;
         control(0);
         animate();
@@ -662,7 +689,7 @@ public:
                 v = 0;
             }
             else {
-               tavolsag = tavolsag + v*timeslice;
+                tavolsag = tavolsag + v*timeslice;
             }
         }
         else {
@@ -704,7 +731,7 @@ public:
         objects[1] = &planet;
         objects[2] = &mir;
         for (int i = 0; i < 200; i++) {
-            Vector position =  Vector(rand()%100, rand()%100, -(rand()%40));
+            Vector position =  Vector(rand()%200, rand()%270, -(rand()%200));
             if (i % 8 == 0) {
                 
             }
@@ -714,8 +741,8 @@ public:
             if (i % 4 == 0) {
                 position.y *= -1;
             }
-            if (position.z > -30) {
-                position.z = -30;
+            if (position.z > -150) {
+                position.z = -150;
                 
             }
             stars[i] = position;
@@ -841,7 +868,7 @@ void onIdle( ) {
     for (int i = 0; i < numberOfObjects; i++) {
         objects[i]->control(now - prevTime);
     }
-    camera.control(now - prevTime);
+    //camera.control(now - prevTime);
     for (int i = 0; i < numberOfObjects; i++) {
         objects[i]->animate();
     }
