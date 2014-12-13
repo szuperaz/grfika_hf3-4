@@ -62,9 +62,10 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Innentol modosithatod...
 
-const int screenWidth = 600;	// alkalmazÃ¡s ablak felbontÃ¡sa
+const int screenWidth = 600;    // alkalmazÃ¡s ablak felbontÃ¡sa
 const int screenHeight = 600;
 const float pi = 3.14159265359;
+unsigned int texid;
 //--------------------------------------------------------
 // 3D Vektor
 //--------------------------------------------------------
@@ -86,10 +87,10 @@ struct Vector {
     Vector operator-(const Vector& v) {
         return Vector(x - v.x, y - v.y, z - v.z);
     }
-    float operator*(const Vector& v) { 	// dot product
+    float operator*(const Vector& v) {  // dot product
         return (x * v.x + y * v.y + z * v.z);
     }
-    Vector operator%(const Vector& v) { 	// cross product
+    Vector operator%(const Vector& v) {     // cross product
         return Vector(y*v.z-z*v.y, z*v.x - x*v.z, x*v.y - y*v.x);
     }
     float Length() { return sqrt(x * x + y * y + z * z); }
@@ -143,36 +144,6 @@ public:
         glLightfv(GL_LIGHT0, GL_SHININESS, shininess);
         glEnable(GL_LIGHT0);
         
-    }
-};
-
-struct Camera {
-public:
-    Vector eye;
-    Vector lookAt;
-    Vector up;
-    int fieldOfView;
-    int aspectRatio;
-    int zNear;
-    int zFar;
-    Camera () {}
-    Camera (Vector eye, Vector lookAt, Vector up, int fieldOfView, int aspectRatio, int zNear, int zFar) {
-        this->eye = eye;
-        this->lookAt = lookAt;
-        this->up = up;
-        this->fieldOfView = fieldOfView;
-        this->aspectRatio = aspectRatio;
-        this->zNear = zNear;
-        this->zFar = zFar;
-    }
-    void setOGL () {
-        glViewport(0, 0, screenWidth, screenHeight);
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-        gluPerspective(fieldOfView, aspectRatio, zNear, zFar);
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
-        gluLookAt(eye.x, eye.y, eye.z, lookAt.x, lookAt.y, lookAt.z, up.x, up.y, up.z);
     }
 };
 
@@ -310,7 +281,7 @@ struct Cylinder : ParametricSurface {
         this->height = height;
         this->radius = radius;
     }
-
+    
     void vertexOGL (float u, float v) {
         u = u*2*pi;
         v = v*height;
@@ -395,8 +366,6 @@ public:
     }
 };
 
-unsigned int texid;
-
 struct Planet : Object {
 public:
     Ellipsoid planet;
@@ -406,7 +375,7 @@ public:
         Material ma = Material(0.1, 0.1, 0.9, 0.2, 2);
         planet = Ellipsoid(mp, 18, 17, 18, Vector(2, 2, 2));
         atmosphere = Ellipsoid(ma, 20, 19, 18, Vector(1,1,1));
-        position = Vector(0, -5, -50);
+        position = Vector(0, 0, -30);
         angle = 0;
         rotate = Vector(0, 0, 0);
     }
@@ -471,7 +440,7 @@ public:
         speeds[5] = Vector(0,0);
         return;
     }
-
+    
     Vector doHermiteInterpolation (Vector cp, Vector cpNext, Vector speed, Vector speedNext, float time, float cpTime, float cpNextTime) {
         Vector pointOnCurve, a0, a1, a2, a3;
         float x, y;
@@ -556,7 +525,7 @@ public:
         glVertex3f(1, 0, 0);
         glVertex3f(1, 0, -1);
         glVertex3f(0, 0, -1);
-    
+        
         glNormal3f(0, 0, -1);
         glVertex3f(0, 0, -1);
         glVertex3f(0, -1, -1);
@@ -587,12 +556,16 @@ public:
     CRForgastest body;
     Ellipsoid hole;
     float newAngle;
-    float newPosition;
+    Vector newPosition;
+    float fi;
     
     SpaceStation () {
         napelem = Cube(Material(0.1, 0.2, 0.9, 1, 1), Vector(5, 8, 1), 0, Vector(0, 0, 0), Vector(5, 16, 0.04));
         body = CRForgastest (Vector(0, 0, 0), 0, Vector(0, 1, 1), Vector(1.25, 1.25, 1.25));
-        hole = Ellipsoid(Material(0.4, 0.2, 0.2, 0, 0), 4.9, 4.9, 4.9, Vector(0, 0, 2), 0, Vector(0, 0, 0), Vector(1/2.5, 1/2.5, 1/2.5));
+        hole = Ellipsoid(Material(0.4, 0.2, 0.2, 0, 0), 4.9, 4.9, 4.9, Vector(0, 0, 1.7), 0, Vector(0, 0, 0), Vector(1/2.5, 1/2.5, 1/2.5));
+        fi = 0;
+        control(0);
+        animate();
     }
     void draw () {
         glPushMatrix();
@@ -618,9 +591,15 @@ public:
     void control(float timeSlice) {
         float anglePerMs = 0.01;
         newAngle = anglePerMs * timeSlice + body.angle;
+        float deltaFi = timeSlice*2*pi/100000;
+        newPosition.x = body.position.x;
+        newPosition.y = 75*sinf(fi+deltaFi);
+        newPosition.z = 100*cosf(fi + deltaFi);
+        fi += deltaFi;
     }
     void animate() {
         body.angle = newAngle;
+        body.position = newPosition;
     }
     
 };
@@ -630,14 +609,72 @@ Satellite satellite;
 SpaceStation mir;
 Object *objects[3];
 int numberOfObjects;
+float prevTime;
+float k;
+float a;
+float m;
+float v;
+float x;
+float tavolsag;
+float kotelhossz;
+bool dir;
+
+struct Camera {
+public:
+    Vector eye;
+    Vector lookAt;
+    Vector up;
+    int fieldOfView;
+    int aspectRatio;
+    int zNear;
+    int zFar;
+    Camera () {}
+    Camera (Vector eye, Vector lookAt, Vector up, int fieldOfView, int aspectRatio, int zNear, int zFar) {
+        this->eye = eye;
+        this->lookAt = lookAt;
+        this->up = up;
+        this->fieldOfView = fieldOfView;
+        this->aspectRatio = aspectRatio;
+        this->zNear = zNear;
+        this->zFar = zFar;
+    }
+    void setOGL () {
+        glViewport(0, 0, screenWidth, screenHeight);
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        gluPerspective(fieldOfView, aspectRatio, zNear, zFar);
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+        gluLookAt(eye.x, eye.y, eye.z, lookAt.x, lookAt.y, lookAt.z, up.x, up.y, up.z);
+    }
+    void control (float timeslice) {
+        if (dir) {
+            tavolsag = tavolsag + v*timeslice;
+            if (tavolsag >= kotelhossz) {
+                tavolsag = kotelhossz;
+                dir = false;
+            }
+        }
+        else {
+            tavolsag = tavolsag - v*timeslice;
+            if (tavolsag <= 0) {
+                dir = true;
+            }
+        }
+    }
+    void animate () {
+        lookAt = mir.body.position;
+        eye = Vector(lookAt.x, lookAt.y, lookAt.z +tavolsag+14);
+    }
+};
+
+Camera camera;
 
 struct Scene {
 public:
-    Camera camera;
     Light sun;
     Vector stars[200];
     Scene () {
-        camera = Camera(Vector(0,0,100), Vector(0,0,0), Vector(0,1,0), 65, 1, 5, 400);
         float pos[4] = {0, 0, 100, 0};
         float ambient[4] = {1, 1, 1, 1};
         float diffuse[4] = {0.2, 0.2, 0.2, 1};
@@ -645,11 +682,10 @@ public:
         float shininess = 128;
         sun = Light(pos, ambient, diffuse, specular, shininess);
         mir = SpaceStation();
+        camera = Camera(Vector(0,0,100), Vector(0,0,0), Vector(0,1,0), 65, 1, 5, 400);
         objects[0] = &satellite;
         objects[1] = &planet;
         objects[2] = &mir;
-        camera.lookAt = mir.hole.position;
-        camera.eye = Vector(camera.lookAt.x, camera.lookAt.y, camera.lookAt.z + 30);
         for (int i = 0; i < 200; i++) {
             Vector position =  Vector(rand()%100, rand()%100, -(rand()%40));
             if (i % 8 == 0) {
@@ -667,8 +703,9 @@ public:
             }
             stars[i] = position;
         }
-     }
+    }
     void render () {
+        camera.animate();
         camera.setOGL();
         sun.setOGL();
         float colour[3] = {1, 1, 1};
@@ -692,7 +729,6 @@ public:
 };
 
 Scene scene;
-float prevTime;
 
 // Inicializacio, a program futasanak kezdeten, az OpenGL kontextus letrehozasa utan hivodik meg (ld. main() fv.)
 void onInitialization( ) {
@@ -720,15 +756,21 @@ void onInitialization( ) {
     glEnable(GL_DEPTH_TEST);
     numberOfObjects = 3;
     scene = Scene();
+    k = 5;
+    m = 1;
+    v = 0.004;
+    tavolsag = 0;
+    kotelhossz = 10;
+    dir = true;
     prevTime = 0;
 }
 
 // Rajzolas, ha az alkalmazas ablak ervenytelenne valik, akkor ez a fuggveny hivodik meg
 void onDisplay( ) {
-    glClearColor(0, 0, 0, 1.0f);		// torlesi szin beallitasa
+    glClearColor(0, 0, 0, 1.0f);        // torlesi szin beallitasa
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // kepernyo torles
     scene.render();
-    glutSwapBuffers();     				// Buffercsere: rajzolas vege
+    glutSwapBuffers();                  // Buffercsere: rajzolas vege
     
 }
 
@@ -766,7 +808,7 @@ void onKeyboardUp(unsigned char key, int x, int y) {
 // Eger esemenyeket lekezelo fuggveny
 void onMouse(int button, int state, int x, int y) {
     if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN)   // A GLUT_LEFT_BUTTON / GLUT_RIGHT_BUTTON illetve GLUT_DOWN / GLUT_UP
-        glutPostRedisplay( ); 						 // Ilyenkor rajzold ujra a kepet
+        glutPostRedisplay( );                        // Ilyenkor rajzold ujra a kepet
 }
 
 // Eger mozgast lekezelo fuggveny
@@ -777,14 +819,15 @@ void onMouseMotion(int x, int y)
 
 // `Idle' esemenykezelo, jelzi, hogy az ido telik, az Idle esemenyek frekvenciajara csak a 0 a garantalt minimalis ertek
 void onIdle( ) {
-    float nextTime =  (float)glutGet(GLUT_ELAPSED_TIME);
+    float now =  (float)glutGet(GLUT_ELAPSED_TIME);
     for (int i = 0; i < numberOfObjects; i++) {
-        objects[i]->control(nextTime - prevTime);
+        objects[i]->control(now - prevTime);
     }
+    camera.control(now - prevTime);
     for (int i = 0; i < numberOfObjects; i++) {
         objects[i]->animate();
     }
-    prevTime = nextTime;
+    prevTime = now;
     onDisplay();
     
 }
@@ -794,28 +837,28 @@ void onIdle( ) {
 
 // A C++ program belepesi pontja, a main fuggvenyt mar nem szabad bantani
 int main(int argc, char **argv) {
-    glutInit(&argc, argv); 				// GLUT inicializalasa
-    glutInitWindowSize(600, 600);			// Alkalmazas ablak kezdeti merete 600x600 pixel
-    glutInitWindowPosition(100, 100);			// Az elozo alkalmazas ablakhoz kepest hol tunik fel
-    glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);	// 8 bites R,G,B,A + dupla buffer + melyseg buffer
+    glutInit(&argc, argv);              // GLUT inicializalasa
+    glutInitWindowSize(600, 600);           // Alkalmazas ablak kezdeti merete 600x600 pixel
+    glutInitWindowPosition(100, 100);           // Az elozo alkalmazas ablakhoz kepest hol tunik fel
+    glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);  // 8 bites R,G,B,A + dupla buffer + melyseg buffer
     
-    glutCreateWindow("Grafika hazi feladat");		// Alkalmazas ablak megszuletik es megjelenik a kepernyon
+    glutCreateWindow("Grafika hazi feladat");       // Alkalmazas ablak megszuletik es megjelenik a kepernyon
     
-    glMatrixMode(GL_MODELVIEW);				// A MODELVIEW transzformaciot egysegmatrixra inicializaljuk
+    glMatrixMode(GL_MODELVIEW);             // A MODELVIEW transzformaciot egysegmatrixra inicializaljuk
     glLoadIdentity();
-    glMatrixMode(GL_PROJECTION);			// A PROJECTION transzformaciot egysegmatrixra inicializaljuk
+    glMatrixMode(GL_PROJECTION);            // A PROJECTION transzformaciot egysegmatrixra inicializaljuk
     glLoadIdentity();
     
-    onInitialization();					// Az altalad irt inicializalast lefuttatjuk
+    onInitialization();                 // Az altalad irt inicializalast lefuttatjuk
     
-    glutDisplayFunc(onDisplay);				// Esemenykezelok regisztralasa
+    glutDisplayFunc(onDisplay);             // Esemenykezelok regisztralasa
     glutMouseFunc(onMouse);
     glutIdleFunc(onIdle);
     glutKeyboardFunc(onKeyboard);
     glutKeyboardUpFunc(onKeyboardUp);
     glutMotionFunc(onMouseMotion);
     
-    glutMainLoop();					// Esemenykezelo hurok
+    glutMainLoop();                 // Esemenykezelo hurok
     
     return 0;
 }
